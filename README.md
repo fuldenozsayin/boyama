@@ -39,7 +39,19 @@ Mağaza derlemesi (EAS):
 npx eas-cli@latest build --profile production --platform all
 ```
 
+## Android telefonda test
+
+- **Hazır test APK'sı (her kod değişikliğinde otomatik güncellenir):**
+  https://github.com/fuldenozsayin/boyama/releases/download/test-apk/MinikRenklerDunyasi.apk
+- Kurulum, EAS Build adımları ve yerel derleme: [`docs/ANDROID_APK.md`](docs/ANDROID_APK.md)
+- Gerçek cihaz test listesi: [`docs/TEST_LISTESI.md`](docs/TEST_LISTESI.md)
+
 ## Doğrulama komutları
+
+```bash
+npx expo lint
+```
+
 
 ```bash
 npm run typecheck
