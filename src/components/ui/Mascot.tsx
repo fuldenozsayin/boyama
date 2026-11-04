@@ -8,28 +8,14 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { G, Path } from 'react-native-svg';
-import { arc, circle, drop, ellipse, INK, line, petal, twinkle } from '../../art/dsl';
-import { RAINBOW_STOPS } from '../../engine/paints';
-
-const BODY = drop(100, 122, 62, 44, -90);
-const SHINE = ellipse(72, 92, 13, 20, 30);
-const FOOT_L = ellipse(78, 184, 18, 10);
-const FOOT_R = ellipse(122, 184, 18, 10);
-const ARM_L = ellipse(40, 136, 11, 16, 30);
-const ARM_R = ellipse(160, 130, 11, 16, -30);
-const HANDLE = line([
-  [162, 128],
-  [186, 86],
-]);
-const TIP = petal([186, 86], [194, 58], 8);
-const SMILE = arc(100, 140, 12, 20, 160);
-const CURL = 'M100 18 C108 8 122 12 118 22';
+import { INK } from '../../art/dsl';
+import { MASCOT as M, MASCOT_BRUSH_TIP, MASCOT_COLOR } from '../../art/mascot';
 
 /**
  * Pıtırcık – the game's original mascot: a happy little paint drop.
  * Floats gently and blinks every few seconds.
  */
-export const Mascot = memo(function Mascot({ size = 160, color = '#FFB3D1' }: { size?: number; color?: string }) {
+export const Mascot = memo(function Mascot({ size = 160, color = MASCOT_COLOR }: { size?: number; color?: string }) {
   const [blink, setBlink] = useState(false);
   const float = useSharedValue(0);
 
@@ -68,37 +54,37 @@ export const Mascot = memo(function Mascot({ size = 160, color = '#FFB3D1' }: { 
   return (
     <Animated.View style={style} accessibilityLabel="Pıtırcık">
       <Svg width={size} height={size} viewBox="0 0 210 210">
-        <Path d={ellipse(100, 196, 50, 8)} fill="rgba(78,61,99,0.12)" />
-        <Path d={FOOT_L} fill={color} stroke={INK} strokeWidth={5} />
-        <Path d={FOOT_R} fill={color} stroke={INK} strokeWidth={5} />
-        <Path d={ARM_L} fill={color} stroke={INK} strokeWidth={5} />
-        <Path d={BODY} fill={color} stroke={INK} strokeWidth={6} strokeLinejoin="round" />
-        <Path d={SHINE} fill="#fff" opacity={0.75} />
-        <Path d={CURL} fill="none" stroke={INK} strokeWidth={5} strokeLinecap="round" />
+        <Path d={M.shadow} fill="rgba(78,61,99,0.12)" />
+        <Path d={M.footL} fill={color} stroke={INK} strokeWidth={5} />
+        <Path d={M.footR} fill={color} stroke={INK} strokeWidth={5} />
+        <Path d={M.armL} fill={color} stroke={INK} strokeWidth={5} />
+        <Path d={M.body} fill={color} stroke={INK} strokeWidth={6} strokeLinejoin="round" />
+        <Path d={M.shine} fill="#fff" opacity={0.75} />
+        <Path d={M.curl} fill="none" stroke={INK} strokeWidth={5} strokeLinecap="round" />
         {blink ? (
           <G>
-            <Path d={arc(80, 124, 11, 200, 340)} fill="none" stroke={INK} strokeWidth={6} strokeLinecap="round" />
-            <Path d={arc(120, 124, 11, 200, 340)} fill="none" stroke={INK} strokeWidth={6} strokeLinecap="round" />
+            <Path d={M.closedL} fill="none" stroke={INK} strokeWidth={6} strokeLinecap="round" />
+            <Path d={M.closedR} fill="none" stroke={INK} strokeWidth={6} strokeLinecap="round" />
           </G>
         ) : (
           <G>
-            <Path d={ellipse(80, 120, 11, 14)} fill={INK} />
-            <Path d={ellipse(120, 120, 11, 14)} fill={INK} />
-            <Path d={circle(84, 114, 4.5)} fill="#fff" />
-            <Path d={circle(124, 114, 4.5)} fill="#fff" />
-            <Path d={circle(77, 125, 2)} fill="#fff" />
-            <Path d={circle(117, 125, 2)} fill="#fff" />
+            <Path d={M.eyeL} fill={INK} />
+            <Path d={M.eyeR} fill={INK} />
+            <Path d={M.shineL} fill="#fff" />
+            <Path d={M.shineR} fill="#fff" />
+            <Path d={M.dotL} fill="#fff" />
+            <Path d={M.dotR} fill="#fff" />
           </G>
         )}
-        <Path d={ellipse(66, 140, 10, 6)} fill="#FF8FB8" opacity={0.7} />
-        <Path d={ellipse(134, 140, 10, 6)} fill="#FF8FB8" opacity={0.7} />
-        <Path d={SMILE} fill="none" stroke={INK} strokeWidth={5} strokeLinecap="round" />
-        <Path d={HANDLE} stroke={INK} strokeWidth={13} strokeLinecap="round" />
-        <Path d={HANDLE} stroke="#FFD98A" strokeWidth={6} strokeLinecap="round" />
-        <Path d={TIP} fill={RAINBOW_STOPS[4]} stroke={INK} strokeWidth={4.5} strokeLinejoin="round" />
-        <Path d={ARM_R} fill={color} stroke={INK} strokeWidth={5} />
-        <Path d={twinkle(30, 60, 10)} fill="#FFE27A" stroke={INK} strokeWidth={3} />
-        <Path d={twinkle(176, 30, 7)} fill="#fff" stroke={INK} strokeWidth={3} />
+        <Path d={M.cheekL} fill="#FF8FB8" opacity={0.7} />
+        <Path d={M.cheekR} fill="#FF8FB8" opacity={0.7} />
+        <Path d={M.smile} fill="none" stroke={INK} strokeWidth={5} strokeLinecap="round" />
+        <Path d={M.handle} stroke={INK} strokeWidth={13} strokeLinecap="round" />
+        <Path d={M.handle} stroke="#FFD98A" strokeWidth={6} strokeLinecap="round" />
+        <Path d={M.tip} fill={MASCOT_BRUSH_TIP} stroke={INK} strokeWidth={4.5} strokeLinejoin="round" />
+        <Path d={M.armR} fill={color} stroke={INK} strokeWidth={5} />
+        <Path d={M.spark1} fill="#FFE27A" stroke={INK} strokeWidth={3} />
+        <Path d={M.spark2} fill="#fff" stroke={INK} strokeWidth={3} />
       </Svg>
     </Animated.View>
   );

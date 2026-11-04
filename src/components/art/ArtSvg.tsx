@@ -3,7 +3,7 @@ import Svg, { ClipPath, Defs, G, Path } from 'react-native-svg';
 import { INK, LINE } from '../../art/dsl';
 import { STICKERS } from '../../art/stickers';
 import type { DecorItem, Picture, RegionItem, StickerDef } from '../../art/types';
-import { matToString, partMatrix } from '../../engine/anim';
+import { matToString, resolvePart } from '../../engine/anim';
 import { compilePicture } from '../../engine/compile';
 import type { LiveStroke } from '../../engine/liveStroke';
 import { strokeToD, type Paint, type PaintState, type PlacedSticker, type Stroke } from '../../engine/paint';
@@ -275,7 +275,7 @@ function ArtSvgImpl({
   const hidden = useMemo(() => new Set(hide ?? []), [hide]);
   const parts = picture.parts ?? {};
   const tf = (part?: string) =>
-    time !== undefined && part && parts[part] ? matToString(partMatrix(parts[part], time)) : undefined;
+    time !== undefined && part && parts[part] ? matToString(resolvePart(parts, part, time)) : undefined;
 
   const vb = viewBox ?? [0, 0, 1000, 1000];
   return (

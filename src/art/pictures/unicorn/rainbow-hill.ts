@@ -21,6 +21,7 @@ import {
   twinkle,
   decor,
 } from '../../dsl';
+import { curlLock } from './helpers';
 import type { Picture } from '../../types';
 
 /** Reference picture: chibi unicorn in front of a rainbow. */
@@ -29,12 +30,12 @@ export const rainbowHill: Picture = {
   category: 'unicorn',
   title: 'Gökkuşağı Tepesi',
   parts: {
-    eye: { anim: 'blink', pivot: [655, 448], speed: 0.45 },
+    eye: { anim: 'blink', pivot: [655, 448], speed: 0.45, parent: 'head' },
     tail: { anim: 'wag', pivot: [312, 668], amp: 9, speed: 1.4 },
     rays: { anim: 'spin', pivot: [845, 150], speed: 0.12 },
     star1: { anim: 'twinkle', pivot: [130, 330] },
     star2: { anim: 'twinkle', pivot: [930, 420], phase: 0.5 },
-    head: { anim: 'sway', pivot: [600, 560], amp: 3, speed: 0.7 },
+    head: { anim: 'sway', pivot: [600, 560], amp: 2, speed: 0.7 },
   },
   celebrate: { sound: 'magic', particles: 'stars' },
   items: [
@@ -74,21 +75,14 @@ export const rainbowHill: Picture = {
     inkLine(curve([[80, 960], [92, 930], [100, 962]]), LINE.fine),
     inkLine(curve([[560, 965], [572, 938], [582, 968]]), LINE.fine),
     inkLine(curve([[930, 975], [940, 948], [950, 976]]), LINE.fine),
+    inkLine(curve([[690, 950], [700, 924], [708, 952]]), LINE.fine),
+    inkLine(curve([[712, 954], [724, 932], [732, 958]]), LINE.fine),
 
     // ---- unicorn ----
-    // tail (behind body)
-    region('tail-1', smooth([[318, 628], [262, 572], [192, 566], [148, 606], [176, 642], [222, 626], [272, 652]]), {
-      part: 'tail',
-      hint: '#FFB8D9',
-    }),
-    region('tail-2', smooth([[312, 656], [236, 648], [176, 690], [168, 752], [208, 764], [222, 716], [276, 692]]), {
-      part: 'tail',
-      hint: '#D7C2FF',
-    }),
-    region('tail-3', smooth([[318, 690], [266, 712], [236, 772], [252, 824], [290, 812], [282, 764], [322, 728]]), {
-      part: 'tail',
-      hint: '#B6E3FF',
-    }),
+    // tail (behind body): three curly, tapered locks fanning out
+    region('tail-1', curlLock([[322, 652], [288, 612], [240, 590], [192, 598]], 70, 32, 1), { part: 'tail', hint: '#FFB8D9' }),
+    region('tail-2', curlLock([[318, 672], [272, 680], [232, 708], [210, 750]], 66, 30, 1), { part: 'tail', hint: '#D7C2FF' }),
+    region('tail-3', curlLock([[322, 694], [300, 736], [290, 784], [296, 820]], 58, 26, 1), { part: 'tail', hint: '#B6E3FF' }),
 
     // far legs (slightly behind)
     region('leg-back-far', rect(305, 735, 54, 118, 26), { hint: '#F6E9FA' }),
@@ -109,14 +103,8 @@ export const rainbowHill: Picture = {
       part: 'head',
       hint: '#FFF8FC',
     }),
-    region('mane-2', smooth([[530, 446], [476, 474], [454, 540], [470, 596], [508, 586], [518, 526], [552, 492]]), {
-      part: 'head',
-      hint: '#FFC2DE',
-    }),
-    region('mane-3', smooth([[508, 560], [470, 598], [468, 650], [504, 668], [524, 628], [538, 590]]), {
-      part: 'head',
-      hint: '#C9B8FF',
-    }),
+    region('mane-3', curlLock([[556, 480], [520, 530], [500, 590], [500, 628]], 60, 28, 1), { part: 'head', hint: '#C9B8FF' }),
+    region('mane-2', curlLock([[575, 400], [530, 440], [500, 492], [488, 540]], 66, 30, 1), { part: 'head', hint: '#FFC2DE' }),
 
     // ear behind head
     region('ear', petal([598, 372], [568, 262], 40), { part: 'head', hint: '#FFF8FC' }),
@@ -132,14 +120,8 @@ export const rainbowHill: Picture = {
     inkLine(curve([[648, 330], [672, 324], [692, 334]]), LINE.fine, 'head'),
     inkLine(curve([[665, 292], [684, 286], [700, 296]]), LINE.fine, 'head'),
     inkLine(curve([[683, 255], [698, 250], [708, 258]]), LINE.fine, 'head'),
-    region('forelock', smooth([[668, 352], [610, 334], [562, 362], [560, 412], [596, 404], [628, 384]]), {
-      part: 'head',
-      hint: '#FFC2DE',
-    }),
-    region('mane-1', smooth([[586, 352], [530, 362], [492, 410], [500, 462], [536, 452], [552, 408]]), {
-      part: 'head',
-      hint: '#D7C2FF',
-    }),
+    region('mane-1', curlLock([[590, 372], [544, 374], [506, 400], [484, 442]], 64, 30, 1), { part: 'head', hint: '#D7C2FF' }),
+    region('forelock', curlLock([[686, 362], [644, 348], [602, 360], [582, 396]], 60, 26, -1), { part: 'head', hint: '#FFC2DE' }),
 
     // face details (decor, part of the head so they move with it)
     ...cuteEye(655, 448, 64, { lashes: 'right', part: 'eye' }),
@@ -150,7 +132,5 @@ export const rainbowHill: Picture = {
     region('flower-1-mid', circle(120, 905, 20), { hint: '#FFE27A' }),
     region('flower-2', scallop(870, 915, 36, 5, 0.65, -70), { hint: '#C9B8FF' }),
     region('flower-2-mid', circle(870, 915, 21), { hint: '#FFE27A' }),
-    region('flower-3', scallop(700, 945, 32, 5, 0.65, -80), { hint: '#9ED6FF' }),
-    region('flower-3-mid', circle(700, 945, 20), { hint: '#FFF4B0' }),
   ],
 };

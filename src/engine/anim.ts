@@ -68,3 +68,24 @@ export function matToString(m: Mat): string {
   const r = (n: number) => Math.round(n * 1000) / 1000;
   return `matrix(${r(m[0])} ${r(m[1])} ${r(m[2])} ${r(m[3])} ${r(m[4])} ${r(m[5])})`;
 }
+
+/** a ∘ b : apply b first, then a */
+export function multiply(a: Mat, b: Mat): Mat {
+  return [
+    a[0] * b[0] + a[2] * b[1],
+    a[1] * b[0] + a[3] * b[1],
+    a[0] * b[2] + a[2] * b[3],
+    a[1] * b[2] + a[3] * b[3],
+    a[0] * b[4] + a[2] * b[5] + a[4],
+    a[1] * b[4] + a[3] * b[5] + a[5],
+  ];
+}
+
+/** Matrix of a named part including all of its parents. */
+export function resolvePart(parts: Record<string, PartAnim>, name: string, t: number, depth = 0): Mat {
+  const p = parts[name];
+  if (!p) return IDENTITY;
+  const own = partMatrix(p, t);
+  if (!p.parent || depth > 4 || !parts[p.parent]) return own;
+  return multiply(resolvePart(parts, p.parent, t, depth + 1), own);
+}

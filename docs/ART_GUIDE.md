@@ -103,6 +103,9 @@ character should come alive. Category expectations:
 - mermaid: tail **wag (swish)**, bubbles bob, fish sway · `{ sound: 'bubbles', particles: 'bubbles' }`
 - butterfly: wings **flap**, flowers sway · `{ sound: 'flutter', particles: 'petals' }`
 
+Parts can be nested with `parent`: e.g. `eye: { anim: 'blink', pivot, parent: 'head' }`
+makes the eyes blink *and* follow a swaying head.
+
 When a part rotates/scales, everything with that part (fill, outline, brush
 strokes the child made, decor) moves together. Pick pivots carefully and
 check the `--anim` preview row.

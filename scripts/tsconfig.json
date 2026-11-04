@@ -2,5 +2,5 @@
   "extends": "../tsconfig.json",
   "compilerOptions": { "types": ["node"], "module": "esnext", "moduleResolution": "bundler" },
   "include": ["./**/*.ts", "../src/**/*.ts"],
-  "exclude": []
+  "exclude": ["../src/**/__tests__/**"]
 }

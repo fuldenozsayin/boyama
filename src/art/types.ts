@@ -44,6 +44,11 @@ export interface PartAnim {
   speed?: number;
   /** phase offset 0..1 so several parts don't move in lock-step */
   phase?: number;
+  /**
+   * optional parent part: this part's motion is applied on top of the
+   * parent's (e.g. eyes that blink *and* follow a swaying head)
+   */
+  parent?: string;
 }
 
 export interface RegionItem {

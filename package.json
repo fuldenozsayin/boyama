@@ -6,6 +6,7 @@
     "@expo-google-fonts/fredoka": "^0.4.1",
     "@expo/metro-runtime": "~58.0.17",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@types/jest": "30.0.0",
     "expo": "~58.0.23",
     "expo-audio": "~58.0.11",
     "expo-constants": "~58.0.15",
@@ -16,6 +17,8 @@
     "expo-speech": "~58.0.3",
     "expo-splash-screen": "~58.0.13",
     "expo-status-bar": "~58.0.4",
+    "jest": "~30.5.2",
+    "jest-expo": "~58.0.14",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
@@ -45,5 +48,13 @@
     "sounds": "tsx scripts/generate-sounds.ts",
     "export:web": "expo export --platform web"
   },
-  "private": true
+  "private": true,
+  "jest": {
+    "preset": "jest-expo",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/",
+      "/art-preview/"
+    ]
+  }
 }
