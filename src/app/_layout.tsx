@@ -1,5 +1,9 @@
 // Baloo 2: rounded and playful, with full Turkish coverage (Ş Ğ İ ı …)
-import { Baloo2_500Medium, Baloo2_600SemiBold, Baloo2_800ExtraBold, useFonts } from '@expo-google-fonts/baloo-2';
+// per-weight imports: only the three weights we use end up in the app bundle
+import { Baloo2_500Medium } from '@expo-google-fonts/baloo-2/500Medium';
+import { Baloo2_600SemiBold } from '@expo-google-fonts/baloo-2/600SemiBold';
+import { Baloo2_800ExtraBold } from '@expo-google-fonts/baloo-2/800ExtraBold';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
