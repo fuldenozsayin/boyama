@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/Brush.java b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/Brush.java
+index dc3dc04..20e296c 100644
+--- a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/Brush.java
++++ b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/Brush.java
+@@ -152,6 +152,8 @@ class Brush {
+       BitmapShader bitmapShader =
+           new BitmapShader(bitmap, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT);
+       bitmapShader.setLocalMatrix(patternMatrix);
++      // smooth (bilinear) sampling of pattern tiles; the default paint flags disable it
++      paint.setFilterBitmap(true);
+       paint.setShader(bitmapShader);
+       return;
+     }

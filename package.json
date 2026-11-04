@@ -36,6 +36,9 @@
   "devDependencies": {
     "@types/node": "^26.6.6",
     "@types/react": "~19.3.0",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~58.0.4",
+    "patch-package": "^8.0.1",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3"
   },
@@ -48,7 +51,9 @@
     "test": "jest",
     "art:preview": "tsx scripts/art-preview.ts",
     "sounds": "tsx scripts/generate-sounds.ts",
-    "export:web": "expo export --platform web"
+    "export:web": "expo export --platform web",
+    "postinstall": "patch-package",
+    "lint": "expo lint"
   },
   "private": true,
   "jest": {

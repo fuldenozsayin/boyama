@@ -19,8 +19,7 @@ import {
   twinkle,
   WHITE,
 } from '../../dsl';
-import type { ArtItem } from '../../types';
-import type { Picture } from '../../types';
+import type { ArtItem, Picture } from '../../types';
 import { bumpy, crescent, place } from './helpers';
 import { fairy } from './kit';
 

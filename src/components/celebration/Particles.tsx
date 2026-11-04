@@ -105,7 +105,7 @@ function ParticleDriver({ p, mode, w, h, loop }: { p: P; mode: Mode; w: number; 
   const progress = useSharedValue(0);
   useEffect(() => {
     const timing = withTiming(1, { duration: p.duration, easing: Easing.linear });
-    progress.value = withDelay(p.delay, loop ? withRepeat(timing, -1, false) : timing);
+    progress.set(withDelay(p.delay, loop ? withRepeat(timing, -1, false) : timing));
   }, [p, loop, progress]);
   return <Particle p={p} mode={mode} w={w} h={h} progress={progress} />;
 }

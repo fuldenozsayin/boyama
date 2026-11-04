@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { AppState, BackHandler, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -53,7 +53,9 @@ export default function ColorScreen() {
 
   const [history, dispatch] = useReducer(historyReducer, undefined, () => initHistory());
   const state = history.present;
-  const [ready, setReady] = useState(false);
+  // the artwork whose saved state has been loaded (derived readiness: no reset needed on id change)
+  const [loadedId, setLoadedId] = useState<string | null>(null);
+  const ready = loadedId === artworkId;
 
   const [tool, setTool] = useState<Tool>('fill');
   const [color, setColor] = useState('#FF8FC7');
@@ -76,13 +78,12 @@ export default function ColorScreen() {
   // ------------------------------------------------------------- load + autosave
   useEffect(() => {
     let alive = true;
-    setReady(false);
     prevPct.current = null;
-    setHint(null);
     loadArt(artworkId).then((s) => {
       if (!alive) return;
       dispatch({ type: 'load', state: s ?? EMPTY_STATE });
-      setReady(true);
+      setHint(null);
+      setLoadedId(artworkId);
     });
     voice.say(free ? 'voice.freeDraw' : 'voice.startColoring');
     return () => {
@@ -91,7 +92,9 @@ export default function ColorScreen() {
   }, [artworkId, free]);
 
   const latestState = useRef(state);
-  latestState.current = state;
+  useLayoutEffect(() => {
+    latestState.current = state;
+  });
   const dirty = useRef(false);
   const saveNow = useCallback(() => {
     if (!dirty.current) return;
@@ -118,9 +121,8 @@ export default function ColorScreen() {
     };
   }, [saveNow]);
 
-  useEffect(() => {
-    if (!stickerId && stickerIds.length) setStickerId(stickerIds[stickerIds.length - 1]);
-  }, [stickerId, stickerIds]);
+  // default to the newest owned sticker until the child picks one
+  const activeSticker = stickerId && stickerIds.includes(stickerId) ? stickerId : (stickerIds[stickerIds.length - 1] ?? null);
 
   // ------------------------------------------------------------- celebration
   const celebrate = useCallback(() => {
@@ -148,7 +150,9 @@ export default function ColorScreen() {
   // ------------------------------------------------------------- Android back
   const lastCanvasTouch = useRef(0);
   const backState = useRef({ celebration: false, confirmReset: false, zoomed: false });
-  backState.current = { celebration: !!celebration, confirmReset, zoomed };
+  useLayoutEffect(() => {
+    backState.current = { celebration: !!celebration, confirmReset, zoomed };
+  });
   useFocusEffect(
     useCallback(() => {
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -270,7 +274,7 @@ export default function ColorScreen() {
       celebrate();
       return;
     }
-    meterShake.value = withSequence(withTiming(-8, { duration: 70 }), withTiming(8, { duration: 70 }), withTiming(-5, { duration: 70 }), withSpring(0));
+    meterShake.set(withSequence(withTiming(-8, { duration: 70 }), withTiming(8, { duration: 70 }), withTiming(-5, { duration: 70 }), withSpring(0)));
     voice.say('voice.almost', { force: true });
     showHint();
   };
@@ -421,7 +425,7 @@ export default function ColorScreen() {
 
   const palette =
     tool === 'sticker' ? (
-      <StickerTray ids={stickerIds} selected={stickerId} fresh={fresh} onSelect={setStickerId} vertical={landscape} />
+      <StickerTray ids={stickerIds} selected={activeSticker} fresh={fresh} onSelect={setStickerId} vertical={landscape} />
     ) : (
       <>
         <EffectChips color={color} kind={kind} onSelect={pickKind} vertical={landscape} size={landscape ? 44 : 40} />
@@ -446,7 +450,7 @@ export default function ColorScreen() {
             tool={tool}
             paint={paint}
             brushWidth={brushWidth}
-            stickerId={stickerId}
+            stickerId={activeSticker}
             dispatch={dispatch}
             onEvent={onEvent}
             zoomResetKey={zoomReset}

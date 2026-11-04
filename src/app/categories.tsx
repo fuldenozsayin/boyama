@@ -3,8 +3,7 @@ import React, { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CATEGORIES } from '../art';
-import { getPicture } from '../art';
+import { CATEGORIES, getPicture } from '../art';
 import type { Category } from '../art/types';
 import { sound } from '../audio/sound';
 import { voice } from '../audio/voice';
@@ -14,7 +13,7 @@ import { PastelBackground } from '../components/ui/PastelBackground';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { EMPTY_STATE } from '../engine/paint';
 import { useApp } from '../store/useApp';
-import { C, darken, FONT, softShadow } from '../theme';
+import { darken, FONT, softShadow } from '../theme';
 import { haptic } from '../utils/feedback';
 
 function CategoryCard({ cat, width, index }: { cat: Category; width: number; index: number }) {
@@ -31,8 +30,8 @@ function CategoryCard({ cat, width, index }: { cat: Category; width: number; ind
         accessibilityRole="button"
         accessibilityLabel={cat.title}
         testID={`category-${cat.id}`}
-        onPressIn={() => (press.value = withSpring(0.93, { damping: 12 }))}
-        onPressOut={() => (press.value = withSpring(1, { damping: 6 }))}
+        onPressIn={() => press.set(withSpring(0.93, { damping: 12 }))}
+        onPressOut={() => press.set(withSpring(1, { damping: 6 }))}
         onPress={() => {
           sound.play('whoosh');
           haptic('light');

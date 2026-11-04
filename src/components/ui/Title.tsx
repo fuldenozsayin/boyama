@@ -23,7 +23,7 @@ const Letter = memo(function Letter({ ch, i, size }: { ch: string; i: number; si
       cancelAnimation(t);
       return;
     }
-    t.value = withDelay(
+    t.set(withDelay(
       i * 90,
       withRepeat(
         withSequence(
@@ -32,7 +32,7 @@ const Letter = memo(function Letter({ ch, i, size }: { ch: string; i: number; si
         ),
         -1,
       ),
-    );
+    ));
   }, [i, t, focused]);
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: -size * 0.06 * t.value }] }));
   if (ch === ' ') return <View style={{ width: size * 0.3 }} />;

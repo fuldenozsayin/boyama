@@ -27,8 +27,8 @@ function PictureCard({ pic, size, color, index }: { pic: Picture; size: number; 
         accessibilityRole="button"
         accessibilityLabel={pic.title}
         testID={`picture-${pic.id}`}
-        onPressIn={() => (press.value = withSpring(0.93, { damping: 12 }))}
-        onPressOut={() => (press.value = withSpring(1, { damping: 6 }))}
+        onPressIn={() => press.set(withSpring(0.93, { damping: 12 }))}
+        onPressOut={() => press.set(withSpring(1, { damping: 6 }))}
         onPress={() => {
           sound.play('whoosh');
           haptic('light');

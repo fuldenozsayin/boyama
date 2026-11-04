@@ -45,7 +45,7 @@ const FloatingShape = memo(function FloatingShape({ f, w, h }: { f: Floater; w: 
       cancelAnimation(t);
       return;
     }
-    t.value = withDelay(
+    t.set(withDelay(
       f.delay,
       withRepeat(
         withSequence(
@@ -54,7 +54,7 @@ const FloatingShape = memo(function FloatingShape({ f, w, h }: { f: Floater; w: 
         ),
         -1,
       ),
-    );
+    ));
   }, [f, t, focused]);
   const style = useAnimatedStyle(() => ({
     transform: [{ translateY: -f.drift * t.value }, { rotate: `${(t.value - 0.5) * 8}deg` }],

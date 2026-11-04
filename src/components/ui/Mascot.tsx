@@ -27,13 +27,13 @@ export const Mascot = memo(function Mascot({ size = 160, color = MASCOT_COLOR }:
       cancelAnimation(float);
       return;
     }
-    float.value = withRepeat(
+    float.set(withRepeat(
       withSequence(
         withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
         withTiming(0, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
       ),
       -1,
-    );
+    ));
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
     const loop = () => {

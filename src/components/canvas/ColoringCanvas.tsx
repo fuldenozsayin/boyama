@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PixelRatio, StyleSheet, View } from 'react-native';
 import { GestureDetector, usePanGesture, usePinchGesture, useSimultaneousGestures } from 'react-native-gesture-handler';
 import Animated, {
@@ -75,7 +75,9 @@ export function ColoringCanvas({
 
   // latest props for gesture callbacks (they are created once)
   const latest = useRef({ state, tool, paint, brushWidth, stickerId, size, dispatch, onEvent });
-  latest.current = { state, tool, paint, brushWidth, stickerId, size, dispatch, onEvent };
+  useLayoutEffect(() => {
+    latest.current = { state, tool, paint, brushWidth, stickerId, size, dispatch, onEvent };
+  });
 
   // ---------------------------------------------------------------- zoom
   const scale = useSharedValue(1);
@@ -99,16 +101,21 @@ export function ColoringCanvas({
   );
 
   useEffect(() => {
-    half.value = size / 2;
+    half.set(size / 2);
   }, [size, half]);
 
+  // zoom reset requested by the parent: drop the high-res render right away
+  // (state adjusted during render, React's recommended pattern) and animate back
+  const [seenResetKey, setSeenResetKey] = useState(zoomResetKey);
+  if (seenResetKey !== zoomResetKey) {
+    setSeenResetKey(zoomResetKey);
+    setRenderScale(1);
+  }
   useEffect(() => {
     if (zoomResetKey === undefined) return;
-    scale.value = withSpring(1, { damping: 16 });
-    tx.value = withSpring(0, { damping: 16 });
-    ty.value = withSpring(0, { damping: 16 });
-    commitZoom(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    scale.set(withSpring(1, { damping: 16 }));
+    tx.set(withSpring(0, { damping: 16 }));
+    ty.set(withSpring(0, { damping: 16 }));
   }, [zoomResetKey, scale, tx, ty]);
 
   // ---------------------------------------------------------------- touch state (JS thread)
@@ -315,8 +322,10 @@ export function ColoringCanvas({
     }
   }, [live]);
 
-  flushPendingRef.current = flushPending;
-  dropPendingRef.current = dropPending;
+  useLayoutEffect(() => {
+    flushPendingRef.current = flushPending;
+    dropPendingRef.current = dropPending;
+  }, [flushPending, dropPending]);
 
   const onUp = useCallback(
     (canceled: boolean) => {
@@ -380,8 +389,8 @@ export function ColoringCanvas({
     },
     onActivate: (e) => {
       'worklet';
-      pinching.value = true;
-      pinchStart.value = { s: scale.value, k: e.scale, tx: tx.value, ty: ty.value, fx: e.focalX, fy: e.focalY, n: e.numberOfPointers };
+      pinching.set(true);
+      pinchStart.set({ s: scale.value, k: e.scale, tx: tx.value, ty: ty.value, fx: e.focalX, fy: e.focalY, n: e.numberOfPointers });
       scheduleOnRN(cancelStroke);
     },
     onUpdate: (e) => {
@@ -390,7 +399,7 @@ export function ColoringCanvas({
       // Android keeps the pinch alive until the LAST finger lifts and moves the
       // focal point to the remaining finger: re-anchor instead of jumping.
       if (e.numberOfPointers !== st.n) {
-        pinchStart.value = { s: scale.value, k: e.scale, tx: tx.value, ty: ty.value, fx: e.focalX, fy: e.focalY, n: e.numberOfPointers };
+        pinchStart.set({ s: scale.value, k: e.scale, tx: tx.value, ty: ty.value, fx: e.focalX, fy: e.focalY, n: e.numberOfPointers });
         return;
       }
       if (e.numberOfPointers < 2 || st.k === 0) return;
@@ -401,17 +410,17 @@ export function ColoringCanvas({
       const lim = Math.max(0, (s - 1) * c);
       nx = Math.max(-lim, Math.min(lim, nx));
       ny = Math.max(-lim, Math.min(lim, ny));
-      scale.value = s;
-      tx.value = nx;
-      ty.value = ny;
+      scale.set(s);
+      tx.set(nx);
+      ty.set(ny);
     },
     onDeactivate: () => {
       'worklet';
-      pinching.value = false;
+      pinching.set(false);
       if (scale.value < 1.05) {
-        scale.value = withSpring(1, { damping: 16 });
-        tx.value = withSpring(0, { damping: 16 });
-        ty.value = withSpring(0, { damping: 16 });
+        scale.set(withSpring(1, { damping: 16 }));
+        tx.set(withSpring(0, { damping: 16 }));
+        ty.set(withSpring(0, { damping: 16 }));
         scheduleOnRN(notifyZoom, false, 1);
       } else {
         scheduleOnRN(notifyZoom, true, scale.value);
@@ -427,15 +436,15 @@ export function ColoringCanvas({
     },
     onActivate: () => {
       'worklet';
-      panStart.value = { tx: tx.value, ty: ty.value };
+      panStart.set({ tx: tx.value, ty: ty.value });
       scheduleOnRN(cancelStroke);
     },
     onUpdate: (e) => {
       'worklet';
       if (pinching.value) return;
       const lim = Math.max(0, (scale.value - 1) * half.value);
-      tx.value = Math.max(-lim, Math.min(lim, panStart.value.tx + e.translationX));
-      ty.value = Math.max(-lim, Math.min(lim, panStart.value.ty + e.translationY));
+      tx.set(Math.max(-lim, Math.min(lim, panStart.value.tx + e.translationX)));
+      ty.set(Math.max(-lim, Math.min(lim, panStart.value.ty + e.translationY)));
     },
   });
 
@@ -449,11 +458,11 @@ export function ColoringCanvas({
   const glow = useSharedValue(0);
   useEffect(() => {
     if (hintRegion) {
-      glow.value = 0;
-      glow.value = withRepeat(withSequence(withTiming(1, { duration: 420 }), withTiming(0.25, { duration: 420 })), 4, false);
+      glow.set(0);
+      glow.set(withRepeat(withSequence(withTiming(1, { duration: 420 }), withTiming(0.25, { duration: 420 })), 4, false));
     } else {
       cancelAnimation(glow);
-      glow.value = 0;
+      glow.set(0);
     }
   }, [hintRegion, glow]);
   const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value }));

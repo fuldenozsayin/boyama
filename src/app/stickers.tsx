@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import React, { memo, useCallback, useEffect, useMemo } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,7 +31,7 @@ function StickerCell({ def, owned, isNew, size, index }: { def: StickerDef; owne
   const wiggle = useSharedValue(0);
   const glow = useSharedValue(1);
   useEffect(() => {
-    if (isNew) glow.value = withRepeat(withSequence(withTiming(1.12, { duration: 500 }), withTiming(1, { duration: 500 })), 6);
+    if (isNew) glow.set(withRepeat(withSequence(withTiming(1.12, { duration: 500 }), withTiming(1, { duration: 500 })), 6));
   }, [isNew, glow]);
   const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${wiggle.value}deg` }, { scale: glow.value }] }));
   return (
@@ -46,7 +46,7 @@ function StickerCell({ def, owned, isNew, size, index }: { def: StickerDef; owne
           }
           haptic('light');
           sound.play('sticker');
-          wiggle.value = withSequence(withTiming(-14, { duration: 90 }), withTiming(14, { duration: 120 }), withSpring(0, { damping: 6 }));
+          wiggle.set(withSequence(withTiming(-14, { duration: 90 }), withTiming(14, { duration: 120 }), withSpring(0, { damping: 6 })));
         }}
         style={[styles.cell, { width: size, height: size }, owned ? softShadow(5) : null, owned ? styles.ownedCell : styles.lockedCell]}
       >
@@ -72,7 +72,8 @@ export default function Stickers() {
   const fresh = useApp((s) => s.fresh);
   const markSeen = useApp((s) => s.markStickersSeen);
   const ownedSet = useMemo(() => new Set(ownedStickerIds(owned)), [owned]);
-  const freshAtOpen = useMemo(() => new Set(fresh), [fresh.length === 0]); // eslint-disable-line react-hooks/exhaustive-deps
+  // remember which stickers were new when the book was opened (they get marked as seen later)
+  const [freshAtOpen] = useState(() => new Set(fresh));
 
   useFocusEffect(
     useCallback(() => {

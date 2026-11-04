@@ -377,7 +377,6 @@ function musicBox() {
   const A = 12;
   const C2 = 15;
   const D2 = 17;
-  const E2 = 19;
   const melody: [number, number][] = [
     [0, E], [1, G], [2, A], [3, G],
     [4, E], [5, D], [6, C], [7.5, D],

@@ -18,7 +18,8 @@ function useHydrated() {
   const [done, setDone] = useState(() => useApp.persist.hasHydrated());
   useEffect(() => {
     const unsub = useApp.persist.onFinishHydration(() => setDone(true));
-    if (useApp.persist.hasHydrated()) setDone(true);
+    // hydration may have finished between the first render and this subscription
+    if (useApp.persist.hasHydrated()) Promise.resolve().then(() => setDone(true));
     return unsub;
   }, []);
   return done;

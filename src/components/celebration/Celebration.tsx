@@ -5,7 +5,6 @@ import Animated, {
   FadeOut,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withRepeat,
   withSequence,
   withSpring,
@@ -81,8 +80,8 @@ export function Celebration({ picture, state, earnedSticker, onContinue, onNext,
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
-    pop.value = withSpring(1, { damping: 9, stiffness: 140 });
-    wobble.value = withRepeat(withSequence(withTiming(1, { duration: 1300 }), withTiming(-1, { duration: 1300 })), -1, true);
+    pop.set(withSpring(1, { damping: 9, stiffness: 140 }));
+    wobble.set(withRepeat(withSequence(withTiming(1, { duration: 1300 }), withTiming(-1, { duration: 1300 })), -1, true));
     sound.play('celebrate');
     haptic('success');
     const later = (ms: number, fn: () => void) => timers.current.push(setTimeout(fn, ms));
@@ -90,8 +89,8 @@ export function Celebration({ picture, state, earnedSticker, onContinue, onNext,
     later(900, () => voice.say('voice.done', { force: true }));
     if (earnedSticker) {
       later(1700, () => {
-        reward.value = withSpring(1, { damping: 8, stiffness: 120 });
-        spin.value = withSequence(withTiming(360, { duration: 700 }), withRepeat(withSequence(withTiming(352, { duration: 600 }), withTiming(368, { duration: 600 })), -1, true));
+        reward.set(withSpring(1, { damping: 8, stiffness: 120 }));
+        spin.set(withSequence(withTiming(360, { duration: 700 }), withRepeat(withSequence(withTiming(352, { duration: 600 }), withTiming(368, { duration: 600 })), -1, true)));
         sound.play('sticker');
         later(300, () => sound.play('twinkle'));
       });

@@ -59,10 +59,10 @@ export function BubbleButton({
 
   useEffect(() => {
     if (glow && !disabled && focused) {
-      pulse.value = withRepeat(withSequence(withTiming(1.09, { duration: 650 }), withTiming(1, { duration: 650 })), -1);
+      pulse.set(withRepeat(withSequence(withTiming(1.09, { duration: 650 }), withTiming(1, { duration: 650 })), -1));
     } else {
       cancelAnimation(pulse);
-      pulse.value = withTiming(1, { duration: 200 });
+      pulse.set(withTiming(1, { duration: 200 }));
     }
   }, [glow, disabled, pulse, focused]);
 
@@ -80,10 +80,10 @@ export function BubbleButton({
         disabled={disabled}
         hitSlop={hitSlop}
         onPressIn={() => {
-          scale.value = withSpring(0.86, { damping: 12, stiffness: 420 });
+          scale.set(withSpring(0.86, { damping: 12, stiffness: 420 }));
         }}
         onPressOut={() => {
-          scale.value = withSpring(1, { damping: 7, stiffness: 260 });
+          scale.set(withSpring(1, { damping: 7, stiffness: 260 }));
         }}
         onPress={() => {
           if (!silent) tapFeedback();

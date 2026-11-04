@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { t } from '../../i18n/tr';
@@ -56,18 +56,19 @@ function makeQuestion() {
  * Pre-readers can't solve it; adults pass in seconds.
  */
 export function ParentGate({ visible, onPass, onClose }: { visible: boolean; onPass: () => void; onClose: () => void }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} supportedOrientations={['portrait', 'landscape']}>
+      {/* mounted only while open, so every opening starts with a fresh question */}
+      {visible ? <GateBody onPass={onPass} onClose={onClose} /> : null}
+    </Modal>
+  );
+}
+
+function GateBody({ onPass, onClose }: { onPass: () => void; onClose: () => void }) {
   const [q, setQ] = useState(makeQuestion);
   const [input, setInput] = useState('');
   const [tries, setTries] = useState(0);
   const shake = useSharedValue(0);
-
-  useEffect(() => {
-    if (visible) {
-      setQ(makeQuestion());
-      setInput('');
-      setTries(0);
-    }
-  }, [visible]);
 
   const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
   const keys = useMemo(() => ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', 'OK'], []);
@@ -80,12 +81,12 @@ export function ParentGate({ visible, onPass, onClose }: { visible: boolean; onP
         onPass();
         return;
       }
-      shake.value = withSequence(
+      shake.set(withSequence(
         withTiming(-12, { duration: 50 }),
         withTiming(12, { duration: 50 }),
         withTiming(-8, { duration: 50 }),
         withSpring(0),
-      );
+      ));
       setInput('');
       if (tries + 1 >= 3) {
         onClose();
@@ -99,7 +100,7 @@ export function ParentGate({ visible, onPass, onClose }: { visible: boolean; onP
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} supportedOrientations={['portrait', 'landscape']}>
+    <>
       <View style={styles.backdrop}>
         <Animated.View style={[styles.gate, softShadow(12), shakeStyle]} testID="parent-gate">
           <Pressable onPress={onClose} style={styles.close} accessibilityRole="button" accessibilityLabel={t('close')} hitSlop={10}>
@@ -129,7 +130,7 @@ export function ParentGate({ visible, onPass, onClose }: { visible: boolean; onP
           </View>
         </Animated.View>
       </View>
-    </Modal>
+    </>
   );
 }
 
