@@ -85,6 +85,19 @@ export function ColoringCanvas({
   const panStart = useSharedValue({ tx: 0, ty: 0 });
   const pinching = useSharedValue(false);
   const half = useSharedValue(size / 2);
+  // Re-render the SVG at a higher resolution while zoomed so lines stay crisp
+  // (on iOS a scaled view would otherwise stretch a bitmap).
+  const [renderScale, setRenderScale] = useState(1);
+  const rs = useSharedValue(1);
+  const commitZoom = useCallback(
+    (s: number) => {
+      const maxR = Math.max(1, Math.min(2.5, 1400 / size));
+      const r = s <= 1.05 ? 1 : Math.min(maxR, Math.round(s * 4) / 4);
+      rs.value = r;
+      setRenderScale(r);
+    },
+    [rs, size],
+  );
   useEffect(() => {
     half.value = size / 2;
   }, [size, half]);
@@ -94,6 +107,8 @@ export function ColoringCanvas({
     scale.value = withSpring(1, { damping: 16 });
     tx.value = withSpring(0, { damping: 16 });
     ty.value = withSpring(0, { damping: 16 });
+    commitZoom(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoomResetKey, scale, tx, ty]);
 
   // ---------------------------------------------------------------- touch state (JS thread)
@@ -120,7 +135,11 @@ export function ColoringCanvas({
     return null;
   }, []);
 
+  const flushPendingRef = useRef<() => void>(() => {});
+  const dropPendingRef = useRef<() => void>(() => {});
+
   const cancelStroke = useCallback(() => {
+    dropPendingRef.current();
     const t = touch.current;
     if (!t.active) return;
     t.cancelled = true;
@@ -132,6 +151,8 @@ export function ColoringCanvas({
 
   const onDown = useCallback(
     (x: number, y: number, pointers: number) => {
+      if (pointers <= 1) flushPendingRef.current();
+      else dropPendingRef.current();
       const t = touch.current;
       t.active = true;
       t.cancelled = pointers > 1;
@@ -185,70 +206,138 @@ export function ColoringCanvas({
     [cancelStroke, live, scale, toCanvas],
   );
 
-  const onUp = useCallback(() => {
-    const t = touch.current;
-    if (!t.active) return;
-    t.active = false;
-    if (t.cancelled) {
-      t.cancelled = false;
-      return;
-    }
-    const { tool: tl, paint: p, stickerId: sid, dispatch: send, onEvent: emit, state: st } = latest.current;
-    const isTap = t.moved < TAP_SLOP;
-    const [cx, cy] = toCanvas(t.sx, t.sy);
+  type Snap = {
+    sx: number;
+    sy: number;
+    cx: number;
+    cy: number;
+    isTap: boolean;
+    region: string | null;
+    dragUid: string | null;
+    lastDrag: { x: number; y: number } | null;
+    pts: number[];
+    w: number;
+  };
 
-    if (tl === 'fill') {
-      if (!isTap) return;
-      const r = hitTest(compiled, cx, cy);
-      if (r) {
-        send({ type: 'fill', region: r.id, paint: p });
-        emit?.({ type: 'filled', region: r.id });
-      }
-      return;
-    }
+  /** apply the result of a finished touch */
+  const commit = useCallback(
+    (snap: Snap) => {
+      const { tool: tl, paint: p, stickerId: sid, dispatch: send, onEvent: emit, state: st } = latest.current;
+      const { cx, cy, isTap } = snap;
 
-    if (tl === 'brush' || tl === 'eraser') {
-      sound.stopLoop();
-      const region = t.region;
-      if (tl === 'eraser' && isTap) {
-        // tap with the eraser: remove a sticker, or clean the whole area
-        const s = stickerAt(cx, cy);
-        if (s) {
-          send({ type: 'sticker-remove', uid: s.uid });
-          emit?.({ type: 'sticker-removed' });
-        } else if (region && (st.fills[region] || st.strokes[region]?.length)) {
-          send({ type: 'clear', region });
-          emit?.({ type: 'cleared', region });
+      if (tl === 'fill') {
+        if (!isTap) return;
+        const r = hitTest(compiled, cx, cy);
+        if (r) {
+          send({ type: 'fill', region: r.id, paint: p });
+          emit?.({ type: 'filled', region: r.id });
         }
-      } else if (region && live.pts.length >= 2) {
-        send({
-          type: 'stroke',
-          region,
-          stroke: { id: uid('s'), paint: tl === 'eraser' ? null : p, w: live.w, pts: live.pts.slice() },
-        });
-        emit?.({ type: 'stroke', region });
+        return;
       }
+
+      if (tl === 'brush' || tl === 'eraser') {
+        const region = snap.region;
+        if (tl === 'eraser' && isTap) {
+          // tap with the eraser: remove a sticker, or clean the whole area
+          const s = stickerAt(cx, cy);
+          if (s) {
+            send({ type: 'sticker-remove', uid: s.uid });
+            emit?.({ type: 'sticker-removed' });
+          } else if (region && (st.fills[region] || st.strokes[region]?.length)) {
+            send({ type: 'clear', region });
+            emit?.({ type: 'cleared', region });
+          }
+        } else if (region && snap.pts.length >= 2) {
+          send({
+            type: 'stroke',
+            region,
+            stroke: { id: uid('s'), paint: tl === 'eraser' ? null : p, w: snap.w, pts: snap.pts },
+          });
+          emit?.({ type: 'stroke', region });
+        }
+        if (!touch.current.active) {
+          live.clear();
+          setLiveRegion(null);
+        }
+        return;
+      }
+
+      if (tl === 'sticker') {
+        if (snap.dragUid) {
+          if (snap.lastDrag && !isTap)
+            send({ type: 'sticker-move', uid: snap.dragUid, x: Math.round(snap.lastDrag.x), y: Math.round(snap.lastDrag.y) });
+          setDrag(null);
+          haptic('light');
+          return;
+        }
+        if (!isTap) return;
+        if (!sid) {
+          emit?.({ type: 'need-sticker' });
+          return;
+        }
+        send({ type: 'sticker-add', sticker: { uid: uid('k'), id: sid, x: Math.round(cx), y: Math.round(cy), s: 0.85 } });
+        emit?.({ type: 'sticker-placed' });
+      }
+    },
+    [compiled, live, stickerAt],
+  );
+
+  // A one-finger gesture that ends "cancelled" may be the first finger of a
+  // pinch. Its tap action waits a moment and is dropped if a pinch begins.
+  const pending = useRef<{ timer: ReturnType<typeof setTimeout>; snap: Snap } | null>(null);
+  const flushPending = useCallback(() => {
+    const pnd = pending.current;
+    if (!pnd) return;
+    clearTimeout(pnd.timer);
+    pending.current = null;
+    commit(pnd.snap);
+  }, [commit]);
+  const dropPending = useCallback(() => {
+    const pnd = pending.current;
+    if (!pnd) return;
+    clearTimeout(pnd.timer);
+    pending.current = null;
+    if (!touch.current.active) {
       live.clear();
       setLiveRegion(null);
-      return;
     }
+  }, [live]);
 
-    if (tl === 'sticker') {
-      if (t.dragUid) {
-        if (t.lastDrag && !isTap) send({ type: 'sticker-move', uid: t.dragUid, x: Math.round(t.lastDrag.x), y: Math.round(t.lastDrag.y) });
-        setDrag(null);
-        haptic('light');
+  flushPendingRef.current = flushPending;
+  dropPendingRef.current = dropPending;
+
+  const onUp = useCallback(
+    (canceled: boolean) => {
+      const t = touch.current;
+      if (!t.active) return;
+      t.active = false;
+      sound.stopLoop();
+      if (t.cancelled) {
+        t.cancelled = false;
         return;
       }
-      if (!isTap) return;
-      if (!sid) {
-        emit?.({ type: 'need-sticker' });
+      const [cx, cy] = toCanvas(t.sx, t.sy);
+      const snap: Snap = {
+        sx: t.sx,
+        sy: t.sy,
+        cx,
+        cy,
+        isTap: t.moved < TAP_SLOP,
+        region: t.region,
+        dragUid: t.dragUid,
+        lastDrag: t.lastDrag,
+        pts: live.pts.slice(),
+        w: live.w,
+      };
+      if (canceled && snap.isTap) {
+        const timer = setTimeout(flushPending, 90);
+        pending.current = { timer, snap };
         return;
       }
-      send({ type: 'sticker-add', sticker: { uid: uid('k'), id: sid, x: Math.round(cx), y: Math.round(cy), s: 0.85 } });
-      emit?.({ type: 'sticker-placed' });
-    }
-  }, [compiled, live, stickerAt, toCanvas]);
+      commit(snap);
+    },
+    [commit, flushPending, live, toCanvas],
+  );
 
   // ---------------------------------------------------------------- gestures
   const draw = usePanGesture({
@@ -257,12 +346,22 @@ export function ColoringCanvas({
     maxPointers: 1,
     onBegin: (e) => onDown(e.x, e.y, e.numberOfPointers),
     onUpdate: (e) => onMove(e.x, e.y, e.numberOfPointers),
-    onFinalize: () => onUp(),
+    onFinalize: (e) => onUp(e.canceled),
   });
 
-  const notifyZoom = useCallback((z: boolean) => onZoomChange?.(z), [onZoomChange]);
+  const notifyZoom = useCallback(
+    (z: boolean, s: number) => {
+      commitZoom(z ? s : 1);
+      onZoomChange?.(z);
+    },
+    [commitZoom, onZoomChange],
+  );
 
   const pinch = usePinchGesture({
+    onBegin: () => {
+      'worklet';
+      scheduleOnRN(cancelStroke);
+    },
     onActivate: (e) => {
       'worklet';
       pinching.value = true;
@@ -290,15 +389,19 @@ export function ColoringCanvas({
         scale.value = withSpring(1, { damping: 16 });
         tx.value = withSpring(0, { damping: 16 });
         ty.value = withSpring(0, { damping: 16 });
-        scheduleOnRN(notifyZoom, false);
+        scheduleOnRN(notifyZoom, false, 1);
       } else {
-        scheduleOnRN(notifyZoom, true);
+        scheduleOnRN(notifyZoom, true, scale.value);
       }
     },
   });
 
   const pan2 = usePanGesture({
     minPointers: 2,
+    onBegin: () => {
+      'worklet';
+      scheduleOnRN(cancelStroke);
+    },
     onActivate: () => {
       'worklet';
       panStart.value = { tx: tx.value, ty: ty.value };
@@ -316,7 +419,7 @@ export function ColoringCanvas({
   const gesture = useSimultaneousGestures(draw, pinch, pan2);
 
   const zoomStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
+    transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value / rs.value }],
   }));
 
   // ---------------------------------------------------------------- hint glow
@@ -336,11 +439,22 @@ export function ColoringCanvas({
   return (
     <GestureDetector gesture={gesture}>
       <View style={[styles.frame, { width: size, height: size }]} collapsable={false} testID="coloring-canvas">
-        <Animated.View style={[{ width: size, height: size }, zoomStyle]}>
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              left: (size - size * renderScale) / 2,
+              top: (size - size * renderScale) / 2,
+              width: size * renderScale,
+              height: size * renderScale,
+            },
+            zoomStyle,
+          ]}
+        >
           <ArtSvg
             picture={picture}
             state={state}
-            size={size}
+            size={size * renderScale}
             prefix={prefix}
             live={live}
             liveRegion={liveRegion}
@@ -349,7 +463,7 @@ export function ColoringCanvas({
           />
           {hintD ? (
             <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, glowStyle]}>
-              <Svg width={size} height={size} viewBox="0 0 1000 1000">
+              <Svg width={size * renderScale} height={size * renderScale} viewBox="0 0 1000 1000">
                 <Path d={hintD} fill="rgba(255,240,150,0.55)" stroke="#FFC233" strokeWidth={14} strokeLinejoin="round" />
               </Svg>
             </Animated.View>

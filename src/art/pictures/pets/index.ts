@@ -1,9 +1,14 @@
 import type { CategoryCover, Picture } from '../../types';
+import { bunnyMeadow } from './bunny-meadow';
+import { kittenBasket } from './kitten-basket';
+import { kittenYarn } from './kitten-yarn';
+import { picnicFriends } from './picnic-friends';
+import { puppyGarden } from './puppy-garden';
 
-// Placeholder – the real pictures are being drawn for this category.
-export const pictures: Picture[] = [];
+export const pictures: Picture[] = [kittenYarn, puppyGarden, bunnyMeadow, kittenBasket, picnicFriends];
 
 export const cover: CategoryCover = {
-  pictureId: '',
-  viewBox: [0, 0, 1000, 1000],
+  pictureId: 'pets-kitten-yarn',
+  viewBox: [86, 150, 836, 836],
+  hide: ['wall', 'floor'],
 };

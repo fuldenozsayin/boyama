@@ -32,10 +32,10 @@ export default function Home() {
   );
 
   const short = Math.min(width, height);
-  const titleSize = Math.max(30, Math.min(56, (landscape ? width * 0.5 : width) / 9.5));
-  const mascotSize = Math.min(short * (landscape ? 0.45 : 0.42), 260);
-  const playSize = Math.min(132, short * 0.3);
-  const small = Math.min(92, short * 0.2);
+  const titleSize = Math.max(30, Math.min(72, (landscape ? width * 0.5 : width) / 9.5));
+  const mascotSize = Math.min(short * (landscape ? 0.45 : 0.42), 340);
+  const playSize = Math.min(168, short * 0.3);
+  const small = Math.min(112, short * 0.2);
 
   const go = (path: '/categories' | '/gallery' | '/stickers' | '/color/free') => {
     sound.play('whoosh');

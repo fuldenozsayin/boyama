@@ -66,6 +66,7 @@ export default function ColorScreen() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [celebration, setCelebration] = useState<{ state: PaintState; sticker: string | null } | null>(null);
 
+  const prevPct = useRef<number | null>(null);
   const paint = useMemo(() => ({ k: kind, c: color }), [kind, color]);
   const compiled = useMemo(() => (picture ? compilePicture(picture) : null), [picture]);
   const regionIds = useMemo(() => compiled?.regions.map((r) => r.id) ?? [], [compiled]);
@@ -76,6 +77,8 @@ export default function ColorScreen() {
   useEffect(() => {
     let alive = true;
     setReady(false);
+    prevPct.current = null;
+    setHint(null);
     loadArt(artworkId).then((s) => {
       if (!alive) return;
       dispatch({ type: 'load', state: s ?? EMPTY_STATE });
@@ -134,7 +137,6 @@ export default function ColorScreen() {
   }, [artworkId, complete, free, nextFreeId, saveNow]);
 
   // auto-celebrate the moment the last region gets coloured
-  const prevPct = useRef<number | null>(null);
   useEffect(() => {
     if (!ready || free) return;
     const prev = prevPct.current;
