@@ -11,6 +11,8 @@ import { createRequire } from 'module';
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
+import { getPicture } from '../src/art';
+import { qa } from '../src/art/qa';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -193,6 +195,31 @@ async function main() {
   await page.waitForTimeout(400);
   const cel = await page.locator('[data-testid="celebration"]').count();
   check(cel === 0, 'done is gated until enough is coloured');
+
+  // colour every region of a real page → automatic celebration + reward
+  const pageId = 'princess-smiling-portrait';
+  const pic = getPicture(pageId)!;
+  const labels = qa(pic).labels;
+  await page.goto(`http://localhost:8765/color/${pageId}`);
+  await tid('coloring-canvas').waitFor();
+  await page.waitForTimeout(600);
+  const cb = await tid('coloring-canvas').boundingBox();
+  const kk = (cb?.width ?? 0) / 1000;
+  const colors = ['#FFC8E0', '#FFE14D', '#C7B3FF', '#A8EBCB', '#BFE3FF', '#FFC9A3'];
+  let n = 0;
+  for (const [, [x, y]] of Object.entries(labels)) {
+    if (n % 4 === 0) await tid(`swatch-${colors[(n / 4) % colors.length]}`).click();
+    await page.mouse.click((cb?.x ?? 0) + x * kk, (cb?.y ?? 0) + (y - 6) * kk);
+    n++;
+  }
+  await page.locator('[data-testid="celebration"]').waitFor({ timeout: 5000 });
+  check(true, `colouring all ${n} regions triggers the celebration`);
+  await page.waitForTimeout(700);
+  await shot('08b-celebration-a');
+  await page.waitForTimeout(2400);
+  await shot('08c-celebration-b');
+  await tid('cel-continue').click();
+  await page.waitForTimeout(500);
 
   // free drawing
   await page.goto('http://localhost:8765/color/free');
