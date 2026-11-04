@@ -7,7 +7,7 @@ reklam entegrasyonu yoktur.
 | Yol | Ne gerekir? | Ne zaman? |
 | --- | --- | --- |
 | **A. Hazır test APK'sı (GitHub)** | Hiçbir şey – sadece telefon | Hemen denemek için |
-| **B. EAS Build** | Ücretsiz Expo hesabı | Expo'nun bulut derlemesi, ileride mağaza sürümü |
+| **B. EAS Build** | Bilgisayar + Node.js + Git + ücretsiz Expo hesabı | Expo'nun bulut derlemesi, ileride mağaza sürümü |
 | **C. Yerel derleme** | Android SDK + JDK 17+ | Geliştirici bilgisayarında |
 
 ---
@@ -23,8 +23,8 @@ Depoya her kod değişikliği gönderildiğinde GitHub Actions
 - **Derleme geçmişi:** https://github.com/fuldenozsayin/boyama/actions/workflows/android-apk.yml
 
 Depo herkese açık olduğu için indirmek için GitHub girişi gerekmez. Elle yeni
-bir derleme başlatmak için: GitHub → **Actions** → **Android test APK** →
-**Run workflow**.
+bir derleme başlatmak için (depo sahibi ya da yazma yetkisi olan biri):
+GitHub → **Actions** → **Android test APK** → **Run workflow**.
 
 APK; arm64-v8a ve armeabi-v7a işlemcileri destekler (son ~10 yılın neredeyse
 tüm telefonları), Android 7.0 (API 24) ve üzerinde çalışır.
@@ -33,13 +33,16 @@ tüm telefonları), Android 7.0 (API 24) ve üzerinde çalışır.
 
 1. Telefonda **Chrome** ile yukarıdaki "Doğrudan APK" bağlantısını açın; dosya
    iner (~30–60 MB).
+   Chrome "Bu dosya türü cihazınıza zarar verebilir" diye sorarsa **Yine de
+   indir**'e dokunun (mağaza dışındaki her APK için çıkan standart uyarıdır).
 2. **İndirme bildirimine** dokunun. Daha önce indirdiyseniz Chrome yeni
    dosyayı `MinikRenklerDunyasi (1).apk` gibi bir adla kaydeder. Bu yüzden
    İndirilenler klasöründen değil, bildirimden açın ya da eski dosyayı
    silin.
 3. "Güvenlik nedeniyle telefonunuz bu kaynaktan bilinmeyen uygulamaları
    yüklemenize izin vermiyor" uyarısında **Ayarlar → Bu kaynaktan izin ver**
-   seçeneğini açıp geri dönün.
+   seçeneğini açıp geri dönün. (Android 7'de: **Ayarlar → Güvenlik →
+   Bilinmeyen kaynaklar** anahtarını açın.)
 4. **Yükle**'ye dokunun. Google Play Protect "tanınmayan geliştirici"
    uyarısı gösterirse **Diğer ayrıntılar → Yine de yükle** deyin. Bu,
    mağaza dışı her test uygulamasında görülen normal bir uyarıdır.
@@ -50,7 +53,10 @@ galeri ve çıkartmalar korunur.
 
 **Hangi sürüm kurulu?** Her GitHub derlemesinin numarası artar (1.0.N).
 Sürüm sayfasının başlığındaki numarayı, uygulamada **Ebeveyn Ayarları →
-Sürüm** satırıyla karşılaştırın. Aynıysa en son derleme kuruludur.
+Sürüm** satırıyla (sayfanın en altında) karşılaştırın. Aynıysa en son
+derleme kuruludur. Başlıkta numara yoksa ya da Actions sayfasında son derleme
+kırmızıysa (başarısız/iptal), bağlantı bir önceki başarılı derlemeyi
+vermektedir.
 
 **İmza notu:** GitHub test APK'sı Expo şablonunun test anahtarıyla
 imzalanır. EAS ile derlenmiş bir APK'ya geçerken (ya da tersi) Android
@@ -76,16 +82,22 @@ profili Play Store'un istediği AAB dosyasını üretir.
 ### Bir kez yapılacaklar
 
 1. https://expo.dev/signup adresinden ücretsiz bir Expo hesabı açın.
-2. Bilgisayarınızda Node.js 22 LTS (22.13 veya üstü) olsun. Expo SDK 58 bunu
-   gerektirir. Projeyi indirip bağımlılıkları kurun (`npm install`, gerekli
-   küçük yamayı `patches/` klasöründen otomatik uygular):
+2. Bilgisayarınızda **Node.js 22.13+ (22.x) ya da 24.3+ (24.x LTS)** ve
+   **Git** (https://git-scm.com) olsun; Node 23 desteklenmez. Git yerine
+   GitHub sayfasındaki **Code → Download ZIP** ile de indirebilirsiniz.
+   Projeyi indirip bağımlılıkları kurun (`npm install`, gerekli küçük yamayı
+   `patches/` klasöründen otomatik uygular):
 
    ```bash
    git clone https://github.com/fuldenozsayin/boyama.git
    ```
 
    ```bash
-   cd boyama && npm install
+   cd boyama
+   ```
+
+   ```bash
+   npm install
    ```
 
 3. Expo hesabınıza giriş yapın:
@@ -120,7 +132,7 @@ npx eas-cli@latest build --platform android --profile preview
 ### İsteğe bağlı: EAS derlemesini GitHub'dan başlatmak
 
 Expo hesabınızda **Access Token** oluşturup GitHub deposunda **Settings →
-Secrets → Actions** altına `EXPO_TOKEN` adıyla eklerseniz, bir GitHub
+Secrets and variables → Actions** altına `EXPO_TOKEN` adıyla eklerseniz, bir GitHub
 Actions adımında `npx eas-cli@latest build --platform android --profile
 preview --non-interactive` çalıştırılabilir. Bu, isteğe bağlıdır; A yolu
 token gerektirmez.
@@ -131,7 +143,9 @@ token gerektirmez.
 npx eas-cli@latest build --platform android --profile production
 ```
 
-Ardından `eas submit` ile Google Play Console'a gönderilebilir. Yayından önce
+Ardından `eas submit` ile Google Play Console'a gönderilebilir (Google,
+ilk AAB'nin Play Console'a elle yüklenmesini ister; sonrakiler `eas submit`
+ile gider). Yayından önce
 `app.json` içindeki `android.package` değerini (şu an
 `com.minikrenkler.dunyasi`) kalıcı olarak belirleyin. Bu değer
 yayınlandıktan sonra değiştirilemez.
@@ -140,8 +154,10 @@ yayınlandıktan sonra değiştirilemez.
 
 ## C. Yerel derleme
 
-Gereken: JDK 17+ ve Android SDK (platform 37, build-tools 37.0.0,
-NDK 27.1.12297006, CMake 3.22.1 – Android Studio kurulumu yeterlidir).
+Gereken: B yolundaki Node.js + `npm install` adımları, JDK 17+ ve Android SDK
+(platform 37, build-tools 37.0.0, NDK 27.1.12297006, CMake 3.22.1 – Android
+Studio kurulumu yeterlidir). Yerel derleme 1.0.0 sürümündedir; telefonda
+GitHub APK'sı kuruluysa önce onu kaldırın ya da `adb install -r -d` kullanın.
 
 ```bash
 npx expo prebuild --platform android --clean

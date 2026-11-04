@@ -34,7 +34,7 @@ export const tr = {
   'parent.music': 'Müzik',
   'parent.voice': 'Sesli rehber',
   'parent.haptics': 'Titreşim',
-  'parent.leftHanded': 'Solak düzeni (araçlar solda)',
+  'parent.leftHanded': 'Solak düzeni (yatay ekranda renkler solda)',
   'parent.resetAll': 'Tüm ilerlemeyi sil',
   'parent.resetConfirm': 'Tüm resimler, galeri ve çıkartmalar silinecek. Emin misiniz?',
   'parent.resetDone': 'Tüm ilerleme silindi.',

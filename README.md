@@ -14,8 +14,8 @@ iOS, Android (telefon ve tablet) ve web için tek kod tabanı.
 | Sihirli boyalar | Simli, gökkuşağı, puantiyeli, yıldızlı, kalpli, çizgili — hem kova hem fırça ile |
 | Serbest çizim | Boş sayfa; bitince galeriye yeni eser olarak kaydedilir |
 | İpucu | 💡 düğmesi henüz boyanmamış en büyük alanı parlatır |
-| Kutlama | Resim bitince karakterler canlanır: unicorn göz kırpar, kedinin kuyruğu sallanır ve miyavlar, kelebek kanat çırpar, prensesin etrafında pırıltılar… + kategoriye özel parçacıklar (yıldız, kalp, baloncuk, yaprak) |
-| Ödüller | Kişisel galeri, 24 özgün çıkartma, çıkartma kitabı, çıkartmalarla resim süsleme (yerleştir, sürükle, silgiyle kaldır) |
+| Kutlama | Resim bitince karakterler canlanır (Android'de ~8 sn; resme dokununca yeniden): unicorn göz kırpar, kedinin kuyruğu sallanır ve miyavlar, kelebek kanat çırpar, prensesin etrafında pırıltılar… + kategoriye özel parçacıklar (yıldız, kalp, baloncuk, yaprak) |
+| Ödüller | Kişisel galeri, 24 özgün çıkartma (her eser en fazla bir kez kazandırır), çıkartma kitabı, çıkartmalarla resim süsleme (yerleştir, sürükle, silgiyle kaldır) |
 | Ses | Tamamen özgün, kodla sentezlenmiş efektler: pentatonik "bloop" dolgu sesleri, fırça / sim / silgi döngüleri, kutlama, miyav, hav, boing, baloncuk… ve kutu müziği döngüsü |
 | Sesli rehber | Cihazın çevrimdışı Türkçe sesiyle yönlendirme; kayıtlı seslendirme eklemeye hazır mimari |
 | Güvenlik | Reklam yok, satın alma yok, sohbet / internet içeriği yok, veri toplama yok, mikrofon vb. izin yok, ebeveyn kapısı (yazıyla çarpma sorusu) |
@@ -30,7 +30,7 @@ npm install
 npx expo start
 ```
 
-- **Telefon/tablet:** Expo Go uygulamasıyla QR kodu okutun. Kullanılan tüm yerel modüller Expo Go'da hazır bulunur.
+- **Telefon/tablet:** Expo Go uygulamasıyla QR kodu okutun; hızlı arayüz denemeleri içindir. Android'deki küçük react-native-svg yaması (sihirli desenlerin pürüzsüz çizimi) ve 64 MB depolama ayarı yalnızca APK/EAS derlemesinde geçerlidir. Cihaz testi için APK'yı kullanın ([`docs/ANDROID_APK.md`](docs/ANDROID_APK.md)).
 - **Web:** terminalde `w` tuşuna basın ya da `npx expo start --web`.
 
 Mağaza derlemesi (EAS):
@@ -64,6 +64,9 @@ npm test
 ```bash
 npx expo export --platform web && npx tsx scripts/smoke-web.ts
 ```
+
+(Uçtan uca test Playwright ve Chromium ister: `npm i -D playwright` ve
+`npx playwright install chromium`.)
 
 `smoke-web.ts` gerçek fare/dokunma olaylarıyla oyunu oynar: dokunarak boyar,
 komşu alanın boyanmadığını ve fırçanın çizgi dışına taşmadığını piksel
@@ -165,9 +168,11 @@ docs/ART_GUIDE.md         Yeni resim çizme rehberi
   ses paketi yüklü değilse rehber sessiz kalır, anlamsız okuma yapmaz.
   Profesyonel seslendirme `src/audio/voice.ts` içindeki `RECORDED`
   tablosuna dosya ekleyerek, ekran kodu değişmeden devreye alınır.
-- **Depolama:** eserler AsyncStorage'da saklanır. Android'de varsayılan
-  sınır ~6 MB'tır ve yüzlerce eser için yeterlidir. Çok yoğun kullanımda
-  `expo-sqlite` ya da `expo-file-system` tabanlı depolamaya geçilebilir.
-  Arayüz `src/store/artStorage.ts` içinde tek yerdedir.
+- **Depolama:** eserler AsyncStorage'da saklanır. Android sınırı
+  `plugins/withAsyncStorageSize.js` ile 64 MB'a çıkarıldı. Fırça darbeleri
+  kaydedilirken sadeleştirilir; bir kayıt başarısız olursa Ebeveyn
+  Ayarları'nda uyarı görünür. Çok yoğun kullanımda `expo-file-system`
+  tabanlı depolamaya geçilebilir; arayüz `src/store/artStorage.ts` içinde
+  tek yerdedir.
 - **Fotoğraflara kaydetme / paylaşma** bilinçli olarak eklenmedi: izin ve
   dış paylaşım gerektirir. İstenirse ebeveyn kapısının arkasına konulabilir.

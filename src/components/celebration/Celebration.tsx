@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -31,7 +31,7 @@ import { Particles } from './Particles';
 export const CLOCK_STEP = Platform.OS === 'android' ? 1 / 20 : 1 / 50;
 export const CLOCK_SECONDS = Platform.OS === 'android' ? 8 : 12;
 
-export function useClock(active: boolean, maxSeconds = CLOCK_SECONDS): number | undefined {
+export function useClock(active: boolean, maxSeconds = CLOCK_SECONDS, restartKey = 0): number | undefined {
   const [t, setT] = useState<number | undefined>(0);
   useEffect(() => {
     if (!active) return;
@@ -52,7 +52,7 @@ export function useClock(active: boolean, maxSeconds = CLOCK_SECONDS): number | 
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [active, maxSeconds]);
+  }, [active, maxSeconds, restartKey]);
   return t;
 }
 
@@ -68,7 +68,8 @@ interface Props {
 export function Celebration({ picture, state, earnedSticker, onContinue, onNext, onGallery }: Props) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const t = useClock(true);
+  const [replay, setReplay] = useState(0);
+  const t = useClock(true, CLOCK_SECONDS, replay);
   const landscape = width > height;
   // every animation tick re-rasterises this SVG on the CPU on Android: keep it modest
   const artSize = Math.min(landscape ? height * 0.62 : width * 0.78, landscape ? width * 0.42 : height * 0.5, Platform.OS === 'android' ? 380 : 560);
@@ -123,11 +124,23 @@ export function Celebration({ picture, state, earnedSticker, onContinue, onNext,
         ]}
         pointerEvents="box-none"
       >
-        <Animated.View style={[styles.frame, softShadow(14), artStyle]}>
-          <View style={styles.inner}>
-            <ArtSvg picture={picture} state={state} size={artSize} prefix="cel" time={t} />
-          </View>
-        </Animated.View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Resmi yeniden canlandır"
+          testID="cel-art"
+          onPress={() => {
+            // tap the picture: the character dances again
+            setReplay((n) => n + 1);
+            sound.character(picture.celebrate?.sound);
+            haptic('light');
+          }}
+        >
+          <Animated.View style={[styles.frame, softShadow(14), artStyle]}>
+            <View style={styles.inner}>
+              <ArtSvg picture={picture} state={state} size={artSize} prefix="cel" time={t} />
+            </View>
+          </Animated.View>
+        </Pressable>
 
         <View style={[styles.side, landscape && { marginLeft: 28 }]}>
           {sticker ? (

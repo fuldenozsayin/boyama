@@ -22,7 +22,7 @@ export default function Home() {
   const fresh = useApp((s) => s.fresh.length);
   const settings = useApp((s) => s.settings);
   const setSetting = useApp((s) => s.setSetting);
-  const muted = !settings.sfx && !settings.music;
+  const muted = !settings.sfx && !settings.music && !settings.voice;
 
   useFocusEffect(
     useCallback(() => {
@@ -51,8 +51,10 @@ export default function Home() {
           size={56}
           color={C.blueMid}
           onPress={() => {
+            // one switch for every sound: effects, music and the spoken guide
             setSetting('sfx', muted);
             setSetting('music', muted);
+            setSetting('voice', muted);
           }}
           testID="home-sound"
         >

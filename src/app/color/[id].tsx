@@ -581,7 +581,8 @@ export default function ColorScreen() {
               {historyBtns}
               {doneBtn}
             </View>
-            <View style={[styles.topRow, { alignItems: 'center' }]}>{sizes ?? extraBtns}</View>
+            {sizes ? <View style={[styles.topRow, { alignItems: 'center' }]}>{sizes}</View> : null}
+            <View style={[styles.topRow, { alignItems: 'center' }]}>{extraBtns}</View>
             {progressMeter}
             <View style={styles.flex}>{palette}</View>
           </View>
