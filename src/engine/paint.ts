@@ -199,3 +199,51 @@ export function strokeToD(pts: number[]): string {
   d += `L${pts[(n - 1) * 2]} ${pts[(n - 1) * 2 + 1]}`;
   return d;
 }
+
+/**
+ * Ramer–Douglas–Peucker simplification of a flat [x0, y0, x1, y1, ...] list.
+ * With a tolerance around one canvas unit the smoothed stroke looks the same,
+ * but saved drawings get several times smaller.
+ */
+export function simplifyStroke(pts: number[], tolerance = 1.2): number[] {
+  const n = pts.length / 2;
+  if (n <= 2) return pts.slice();
+  const keep = new Uint8Array(n);
+  keep[0] = 1;
+  keep[n - 1] = 1;
+  const stack: [number, number][] = [[0, n - 1]];
+  const tol2 = tolerance * tolerance;
+  while (stack.length) {
+    const [a, b] = stack.pop()!;
+    const ax = pts[a * 2];
+    const ay = pts[a * 2 + 1];
+    const bx = pts[b * 2];
+    const by = pts[b * 2 + 1];
+    const dx = bx - ax;
+    const dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    let maxD = -1;
+    let idx = -1;
+    for (let i = a + 1; i < b; i++) {
+      const px = pts[i * 2];
+      const py = pts[i * 2 + 1];
+      let d2: number;
+      if (len2 === 0) d2 = (px - ax) ** 2 + (py - ay) ** 2;
+      else {
+        const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
+        d2 = (px - (ax + t * dx)) ** 2 + (py - (ay + t * dy)) ** 2;
+      }
+      if (d2 > maxD) {
+        maxD = d2;
+        idx = i;
+      }
+    }
+    if (idx > 0 && maxD > tol2) {
+      keep[idx] = 1;
+      stack.push([a, idx], [idx, b]);
+    }
+  }
+  const out: number[] = [];
+  for (let i = 0; i < n; i++) if (keep[i]) out.push(pts[i * 2], pts[i * 2 + 1]);
+  return out;
+}

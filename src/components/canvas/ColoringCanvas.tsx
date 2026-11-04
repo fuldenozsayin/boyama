@@ -16,7 +16,7 @@ import type { Picture } from '../../art/types';
 import { sound } from '../../audio/sound';
 import { compilePicture, hitTest } from '../../engine/compile';
 import { LiveStroke } from '../../engine/liveStroke';
-import { uid, type Paint, type PaintAction, type PaintState } from '../../engine/paint';
+import { simplifyStroke, uid, type Paint, type PaintAction, type PaintState } from '../../engine/paint';
 import { haptic } from '../../utils/feedback';
 import { ArtSvg, getSticker, StickerArt } from '../art/ArtSvg';
 
@@ -270,7 +270,7 @@ export function ColoringCanvas({
           send({
             type: 'stroke',
             region,
-            stroke: { id: uid('s'), paint: tl === 'eraser' ? null : p, w: snap.w, pts: snap.pts },
+            stroke: { id: uid('s'), paint: tl === 'eraser' ? null : p, w: snap.w, pts: simplifyStroke(snap.pts) },
           });
           emit?.({ type: 'stroke', region });
         }

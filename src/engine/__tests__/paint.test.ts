@@ -8,6 +8,7 @@ import {
   HISTORY_LIMIT,
   initHistory,
   serialize,
+  simplifyStroke,
   strokeToD,
   type Paint,
 } from '../paint';
@@ -102,5 +103,25 @@ describe('persistence', () => {
   it('builds smooth stroke paths, including single taps', () => {
     expect(strokeToD([5, 5])).toMatch(/^M5 5L5\.1 5\.1$/);
     expect(strokeToD([0, 0, 10, 10, 20, 0])).toContain('Q');
+  });
+});
+
+describe('stroke simplification', () => {
+  it('drops points on straight runs but keeps corners and ends', () => {
+    const pts: number[] = [];
+    for (let x = 0; x <= 100; x += 2) pts.push(x, 0); // straight line
+    for (let y = 2; y <= 100; y += 2) pts.push(100, y); // then a corner
+    const out = simplifyStroke(pts);
+    expect(out).toEqual([0, 0, 100, 0, 100, 100]);
+  });
+
+  it('keeps visible wiggles', () => {
+    const pts = [0, 0, 10, 8, 20, 0, 30, 8, 40, 0];
+    expect(simplifyStroke(pts)).toEqual(pts);
+  });
+
+  it('leaves tiny strokes untouched', () => {
+    expect(simplifyStroke([5, 5])).toEqual([5, 5]);
+    expect(simplifyStroke([5, 5, 6, 6])).toEqual([5, 5, 6, 6]);
   });
 });

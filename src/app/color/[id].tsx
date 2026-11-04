@@ -595,7 +595,13 @@ export default function ColorScreen() {
             {doneBtn}
           </View>
           <View style={styles.center}>{canvas}</View>
-          <View style={[styles.bottomPanel, softShadow(8)]}>
+          <View
+            style={[styles.bottomPanel, softShadow(8)]}
+            onTouchStart={(e) => {
+              const x = e.nativeEvent.pageX;
+              if (x < BACK_EDGE || x > width - BACK_EDGE) lastCanvasTouch.current = Date.now();
+            }}
+          >
             <View style={styles.toolRow}>
               {tools}
               <View style={styles.flex} />
