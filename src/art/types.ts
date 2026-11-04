@@ -93,7 +93,8 @@ export type ParticleKind = 'stars' | 'hearts' | 'sparkles' | 'bubbles' | 'petals
 export interface Picture {
   /** globally unique, kebab-case, prefixed with category: 'unicorn-rainbow-hill' */
   id: string;
-  category: CategoryId;
+  /** owning category ('free' only for the blank free-drawing page) */
+  category: CategoryId | 'free';
   /** short Turkish title (for parents / accessibility) */
   title: string;
   items: ArtItem[];

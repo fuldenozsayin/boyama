@@ -1,0 +1,199 @@
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import type { SoundKey } from '../art/types';
+
+/**
+ * Lightweight sound engine.
+ * - all files are bundled (offline) and were synthesised by
+ *   scripts/generate-sounds.ts, so there are no licensing concerns
+ * - short effects use a small round-robin pool so taps can overlap
+ * - brush sounds are seamless loops started/stopped with the stroke
+ */
+const SOURCES = {
+  pop0: require('../../assets/sounds/pop0.wav'),
+  pop1: require('../../assets/sounds/pop1.wav'),
+  pop2: require('../../assets/sounds/pop2.wav'),
+  pop3: require('../../assets/sounds/pop3.wav'),
+  pop4: require('../../assets/sounds/pop4.wav'),
+  pop5: require('../../assets/sounds/pop5.wav'),
+  pop6: require('../../assets/sounds/pop6.wav'),
+  pop7: require('../../assets/sounds/pop7.wav'),
+  tap: require('../../assets/sounds/tap.wav'),
+  sticker: require('../../assets/sounds/sticker.wav'),
+  whoosh: require('../../assets/sounds/whoosh.wav'),
+  undo: require('../../assets/sounds/undo.wav'),
+  celebrate: require('../../assets/sounds/celebrate.wav'),
+  chime: require('../../assets/sounds/chime.wav'),
+  twinkle: require('../../assets/sounds/twinkle.wav'),
+  magic: require('../../assets/sounds/magic.wav'),
+  meow: require('../../assets/sounds/meow.wav'),
+  woof: require('../../assets/sounds/woof.wav'),
+  boing: require('../../assets/sounds/boing.wav'),
+  bubbles: require('../../assets/sounds/bubbles.wav'),
+  flutter: require('../../assets/sounds/flutter.wav'),
+  brush: require('../../assets/sounds/brush.wav'),
+  erase: require('../../assets/sounds/erase.wav'),
+  sparkle: require('../../assets/sounds/sparkle.wav'),
+  music: require('../../assets/sounds/music.wav'),
+} as const;
+
+export type SfxKey = keyof typeof SOURCES;
+export type LoopKey = 'brush' | 'erase' | 'sparkle';
+
+const POOL: Partial<Record<SfxKey, number>> = { tap: 2, pop0: 2, pop1: 2, pop2: 2, pop3: 2, pop4: 2, pop5: 2, pop6: 2, pop7: 2 };
+const VOLUME: Partial<Record<SfxKey, number>> = {
+  tap: 0.45,
+  whoosh: 0.35,
+  undo: 0.5,
+  brush: 0.35,
+  erase: 0.35,
+  sparkle: 0.4,
+  music: 0.22,
+};
+
+class SoundEngine {
+  private sfxOn = true;
+  private musicOn = true;
+  private ready = false;
+  private pools = new Map<SfxKey, AudioPlayer[]>();
+  private cursor = new Map<SfxKey, number>();
+  private activeLoop: LoopKey | null = null;
+  private musicPlaying = false;
+  private musicWanted = false;
+  private popStep = 0;
+
+  init() {
+    if (this.ready) return;
+    this.ready = true;
+    // respect the device silent switch and never interrupt other audio
+    setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers', shouldPlayInBackground: false }).catch(
+      () => {},
+    );
+  }
+
+  private player(key: SfxKey): AudioPlayer | null {
+    try {
+      let pool = this.pools.get(key);
+      if (!pool) {
+        const n = POOL[key] ?? 1;
+        pool = Array.from({ length: n }, () => createAudioPlayer(SOURCES[key]));
+        pool.forEach((p) => (p.volume = VOLUME[key] ?? 0.8));
+        this.pools.set(key, pool);
+      }
+      const i = this.cursor.get(key) ?? 0;
+      this.cursor.set(key, (i + 1) % pool.length);
+      return pool[i];
+    } catch {
+      return null;
+    }
+  }
+
+  /** warm up the most common players so the first tap is instant */
+  preload() {
+    (['tap', 'pop0', 'pop2', 'pop4', 'celebrate', 'brush'] as SfxKey[]).forEach((k) => this.player(k));
+  }
+
+  setEnabled(sfx: boolean, music: boolean) {
+    this.sfxOn = sfx;
+    this.musicOn = music;
+    if (!sfx) this.stopLoop();
+    if (!music) this.pauseMusicInternal();
+    else if (this.musicWanted) this.startMusic();
+  }
+
+  play(key: SfxKey) {
+    if (!this.sfxOn) return;
+    const p = this.player(key);
+    if (!p) return;
+    try {
+      p.loop = false;
+      p.seekTo(0).catch(() => {});
+      p.play();
+    } catch {
+      // audio is a nice-to-have; never crash the game for it
+    }
+  }
+
+  /** soft musical "bloop" walking up and down a pentatonic scale */
+  pop() {
+    const seq = [0, 2, 4, 3, 5, 4, 6, 7, 5, 3, 1, 2];
+    const k = seq[this.popStep % seq.length];
+    this.popStep++;
+    this.play(`pop${k}` as SfxKey);
+  }
+
+  character(sound?: SoundKey) {
+    if (!sound) return;
+    this.play(sound as SfxKey);
+  }
+
+  startLoop(key: LoopKey) {
+    if (!this.sfxOn) return;
+    if (this.activeLoop === key) return;
+    this.stopLoop();
+    const p = this.player(key);
+    if (!p) return;
+    try {
+      p.loop = true;
+      p.play();
+      this.activeLoop = key;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  stopLoop() {
+    if (!this.activeLoop) return;
+    const pool = this.pools.get(this.activeLoop);
+    pool?.forEach((p) => {
+      try {
+        p.pause();
+      } catch {
+        /* ignore */
+      }
+    });
+    this.activeLoop = null;
+  }
+
+  startMusic() {
+    this.musicWanted = true;
+    if (!this.musicOn || this.musicPlaying) return;
+    const p = this.player('music');
+    if (!p) return;
+    try {
+      p.loop = true;
+      p.play();
+      this.musicPlaying = true;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  stopMusic() {
+    this.musicWanted = false;
+    this.pauseMusicInternal();
+  }
+
+  private pauseMusicInternal() {
+    if (!this.musicPlaying) return;
+    this.pools.get('music')?.forEach((p) => {
+      try {
+        p.pause();
+      } catch {
+        /* ignore */
+      }
+    });
+    this.musicPlaying = false;
+  }
+
+  /** app went to background */
+  suspend() {
+    this.stopLoop();
+    this.pauseMusicInternal();
+  }
+
+  resume() {
+    if (this.musicWanted) this.startMusic();
+  }
+}
+
+export const sound = new SoundEngine();

@@ -1,0 +1,198 @@
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import Animated, { FadeIn, FadeInUp, ZoomIn } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getPicture } from '../art';
+import { sound } from '../audio/sound';
+import { voice } from '../audio/voice';
+import { ArtSvg } from '../components/art/ArtSvg';
+import { ArtThumb } from '../components/art/ArtThumb';
+import { BubbleButton } from '../components/ui/BubbleButton';
+import { ConfirmDialog, ParentGate } from '../components/ui/Dialogs';
+import { Icon } from '../components/ui/Icon';
+import { Mascot } from '../components/ui/Mascot';
+import { PastelBackground } from '../components/ui/PastelBackground';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { EMPTY_STATE, type PaintState } from '../engine/paint';
+import { deleteArt, loadArt } from '../store/artStorage';
+import { useApp } from '../store/useApp';
+import { C, softShadow } from '../theme';
+
+const FRAME_COLORS = ['#FFC8DD', '#E2D4FF', '#C9F2DF', '#FFF1B3', '#CDE7FF', '#FFE0CC'];
+
+/** Big view of one artwork; "play" replays its celebration animation. */
+function Viewer({ id, onClose, onDelete }: { id: string; onClose: () => void; onDelete: () => void }) {
+  const { width, height } = useWindowDimensions();
+  const pic = getPicture(id);
+  const [state, setState] = useState<PaintState>(EMPTY_STATE);
+  const [t, setT] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    loadArt(id).then((s) => setState(s ?? EMPTY_STATE));
+  }, [id]);
+  useEffect(() => {
+    if (t === undefined) return;
+    let raf = 0;
+    const start = Date.now() - t * 1000;
+    const tick = () => {
+      const now = (Date.now() - start) / 1000;
+      if (now > 6) {
+        setT(undefined);
+        return;
+      }
+      setT(now);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // only restart when animation is toggled on
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t === undefined]);
+  if (!pic) return null;
+  const size = Math.min(width * 0.86, height * 0.66, 640);
+  return (
+    <View style={styles.viewerBackdrop}>
+      <Animated.View entering={ZoomIn.springify()} style={[styles.bigFrame, softShadow(14)]}>
+        <View style={styles.bigInner}>
+          <ArtSvg picture={pic} state={state} size={size} prefix="view" time={t} />
+        </View>
+      </Animated.View>
+      <View style={styles.viewerBtns}>
+        <BubbleButton a11y="Kapat" size={72} color={C.pinkMid} onPress={onClose} testID="viewer-close">
+          <Icon name="close" size={44} />
+        </BubbleButton>
+        <BubbleButton
+          a11y="Canlandır"
+          size={72}
+          color={C.yellowMid}
+          onPress={() => {
+            sound.play('magic');
+            sound.character(pic.celebrate?.sound);
+            setT(0);
+          }}
+          testID="viewer-play"
+        >
+          <Icon name="play" size={44} color="#fff" />
+        </BubbleButton>
+        <BubbleButton
+          a11y="Boyamaya devam et"
+          size={72}
+          color={C.mintMid}
+          onPress={() => {
+            onClose();
+            router.push({ pathname: '/color/[id]', params: { id } });
+          }}
+          testID="viewer-edit"
+        >
+          <Icon name="brush" size={46} color={C.pinkMid} accent={C.yellowMid} />
+        </BubbleButton>
+        <BubbleButton a11y="Sil (ebeveyn)" size={56} color="#EEE8F5" onPress={onDelete} testID="viewer-delete">
+          <Icon name="trash" size={34} color={C.pinkMid} />
+        </BubbleButton>
+      </View>
+    </View>
+  );
+}
+
+export default function Gallery() {
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const gallery = useApp((s) => s.gallery);
+  const removeArtwork = useApp((s) => s.removeArtwork);
+  const [open, setOpen] = useState<string | null>(null);
+  const [gate, setGate] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      voice.say('voice.gallery');
+    }, []),
+  );
+
+  const cols = width > height ? 4 : width > 700 ? 3 : 2;
+  const gap = 18;
+  const cell = Math.min(300, (width - insets.left - insets.right - 32 - gap * (cols - 1)) / cols);
+  const items = gallery.filter((g) => getPicture(g.id));
+
+  return (
+    <View style={styles.root}>
+      <PastelBackground />
+      <ScreenHeader icon="gallery" iconColor={C.mintMid} />
+      {items.length === 0 ? (
+        <View style={styles.empty}>
+          <Mascot size={180} />
+          <BubbleButton a11y="Boyamaya başla" size={110} color={C.pinkMid} glow onPress={() => router.replace('/categories')}>
+            <Icon name="play" size={66} color="#fff" />
+          </BubbleButton>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={[styles.grid, { gap, paddingBottom: insets.bottom + 24 }]}>
+          {items.map((g, i) => {
+            const pic = getPicture(g.id)!;
+            return (
+              <Animated.View key={g.id} entering={FadeInUp.delay(Math.min(i, 8) * 60)}>
+                <Pressable
+                  onPress={() => {
+                    sound.play('tap');
+                    setOpen(g.id);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={pic.title}
+                  testID={`art-${g.id}`}
+                  style={[styles.frame, softShadow(6), { backgroundColor: FRAME_COLORS[i % FRAME_COLORS.length] }]}
+                >
+                  <View style={styles.paper}>
+                    <ArtThumb artworkId={g.id} picture={pic} size={cell - 28} />
+                  </View>
+                </Pressable>
+              </Animated.View>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      <Modal visible={!!open} transparent animationType="fade" onRequestClose={() => setOpen(null)} supportedOrientations={['portrait', 'landscape']}>
+        {open && (
+          <Animated.View entering={FadeIn} style={styles.flex}>
+            <Viewer id={open} onClose={() => setOpen(null)} onDelete={() => setGate(true)} />
+          </Animated.View>
+        )}
+        <ParentGate
+          visible={gate}
+          onClose={() => setGate(false)}
+          onPass={() => {
+            setGate(false);
+            setConfirm(true);
+          }}
+        />
+        <ConfirmDialog
+          visible={confirm}
+          icon="trash"
+          message="Bu resim galeriden silinsin mi?"
+          onNo={() => setConfirm(false)}
+          onYes={() => {
+            if (open) {
+              removeArtwork(open);
+              if (open.startsWith('free-')) deleteArt(open);
+            }
+            setConfirm(false);
+            setOpen(null);
+          }}
+        />
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  flex: { flex: 1 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', paddingHorizontal: 16, paddingTop: 8 },
+  frame: { borderRadius: 26, padding: 10, borderWidth: 4, borderColor: C.ink },
+  paper: { borderRadius: 16, overflow: 'hidden', backgroundColor: '#fff', borderWidth: 3, borderColor: C.ink },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 24 },
+  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(255,236,248,0.95)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  bigFrame: { backgroundColor: '#FFE68A', borderRadius: 34, padding: 12, borderWidth: 5, borderColor: C.ink },
+  bigInner: { borderRadius: 22, overflow: 'hidden', backgroundColor: '#fff', borderWidth: 4, borderColor: C.ink },
+  viewerBtns: { flexDirection: 'row', gap: 16, marginTop: 22, alignItems: 'center' },
+});
