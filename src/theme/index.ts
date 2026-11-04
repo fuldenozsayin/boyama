@@ -58,9 +58,9 @@ export const PALETTE: string[] = [
 ];
 
 export const FONT = {
-  regular: 'Fredoka_500Medium',
-  bold: 'Fredoka_600SemiBold',
-  black: 'Fredoka_700Bold',
+  regular: 'Baloo2_500Medium',
+  bold: 'Baloo2_600SemiBold',
+  black: 'Baloo2_800ExtraBold',
 };
 
 export const RADIUS = { s: 14, m: 22, l: 32, xl: 44 };

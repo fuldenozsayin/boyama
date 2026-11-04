@@ -65,9 +65,9 @@ const androidMono = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height
   ${mascotAt(272, 262, 480, { mono: '#FFFFFF' })}
 </svg>`;
 
+// Android 12+ shows the splash icon inside a circle: keep the mascot well inside it
 const splash = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  ${rainbow(512, 640, 470, 38)}
-  ${mascotAt(232, 180, 560)}
+  ${mascotAt(262, 236, 520)}
 </svg>`;
 
 const favicon = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 1024 1024">

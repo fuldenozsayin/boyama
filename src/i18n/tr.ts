@@ -38,6 +38,8 @@ export const tr = {
   'parent.resetAll': 'Tüm ilerlemeyi sil',
   'parent.resetConfirm': 'Tüm resimler, galeri ve çıkartmalar silinecek. Emin misiniz?',
   'parent.resetDone': 'Tüm ilerleme silindi.',
+  'parent.storageFull':
+    'Son çizimler kaydedilemedi. Cihazda yer kalmamış olabilir; biraz yer açtıktan sonra uygulamayı yeniden başlatın.',
   'parent.privacyTitle': 'Gizlilik ve Güvenlik',
   'parent.privacy':
     'Bu uygulama reklam, uygulama içi satın alma, sohbet veya internet bağlantısı içermez. Hiçbir kişisel veri toplanmaz ya da paylaşılmaz. Çocuğunuzun resimleri yalnızca bu cihazda saklanır.',

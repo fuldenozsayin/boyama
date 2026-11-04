@@ -54,15 +54,17 @@ function Viewer({ id, onClose, onDelete }: { id: string; onClose: () => void; on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t === undefined]);
   if (!pic) return null;
-  const size = Math.min(width * 0.86, height * 0.66, 640);
+  // landscape phones: picture beside the buttons, so both fit the short height
+  const landscape = width > height;
+  const size = landscape ? Math.min(height - 96, width * 0.6, 640) : Math.min(width * 0.86, height * 0.66, 640);
   return (
-    <View style={styles.viewerBackdrop}>
+    <View style={[styles.viewerBackdrop, landscape && { flexDirection: 'row', gap: 28 }]}>
       <Animated.View entering={ZoomIn.springify()} style={[styles.bigFrame, softShadow(14)]}>
         <View style={styles.bigInner}>
           <ArtSvg picture={pic} state={state} size={size} prefix="view" time={t} />
         </View>
       </Animated.View>
-      <View style={styles.viewerBtns}>
+      <View style={[styles.viewerBtns, landscape && { flexDirection: 'column', marginTop: 0 }]}>
         <BubbleButton a11y="Kapat" size={72} color={C.pinkMid} onPress={onClose} testID="viewer-close">
           <Icon name="close" size={44} />
         </BubbleButton>
@@ -141,7 +143,7 @@ export default function Gallery() {
           windowSize={5}
           removeClippedSubviews
           columnWrapperStyle={cols > 1 ? { gap, justifyContent: 'center' } : undefined}
-          contentContainerStyle={{ gap, paddingTop: 8, paddingHorizontal: 16, paddingBottom: insets.bottom + 24 }}
+          contentContainerStyle={{ gap, paddingTop: 8, paddingLeft: 16 + insets.left, paddingRight: 16 + insets.right, paddingBottom: insets.bottom + 24 }}
           renderItem={({ item: g, index: i }) => {
             const pic = getPicture(g.id)!;
             return (

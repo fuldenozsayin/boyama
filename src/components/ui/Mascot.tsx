@@ -51,6 +51,7 @@ export const Mascot = memo(function Mascot({ size = 160, color = MASCOT_COLOR }:
     return () => {
       alive = false;
       clearTimeout(timer);
+      setBlink(false);
     };
   }, [float, focused]);
 

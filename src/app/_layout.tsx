@@ -1,4 +1,5 @@
-import { Fredoka_500Medium, Fredoka_600SemiBold, Fredoka_700Bold, useFonts } from '@expo-google-fonts/fredoka';
+// Baloo 2: rounded and playful, with full Turkish coverage (Ş Ğ İ ı …)
+import { Baloo2_500Medium, Baloo2_600SemiBold, Baloo2_800ExtraBold, useFonts } from '@expo-google-fonts/baloo-2';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -20,13 +21,18 @@ function useHydrated() {
     const unsub = useApp.persist.onFinishHydration(() => setDone(true));
     // hydration may have finished between the first render and this subscription
     if (useApp.persist.hasHydrated()) Promise.resolve().then(() => setDone(true));
-    return unsub;
+    // safety net: never keep the child on the splash screen
+    const fallback = setTimeout(() => setDone(true), 5000);
+    return () => {
+      unsub();
+      clearTimeout(fallback);
+    };
   }, []);
   return done;
 }
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({ Fredoka_500Medium, Fredoka_600SemiBold, Fredoka_700Bold });
+  const [fontsLoaded, fontError] = useFonts({ Baloo2_500Medium, Baloo2_600SemiBold, Baloo2_800ExtraBold });
   const hydrated = useHydrated();
   const settings = useApp((s) => s.settings);
   const ready = (fontsLoaded || !!fontError) && hydrated;

@@ -19,9 +19,11 @@ Ekran boyu: ______ · Tablet mi? ☐
 - [ ] 1.1 APK sorunsuz kuruluyor; ana ekranda pembe damla (Pıtırcık) simgeli **Minik Renkler Dünyası** uygulaması görünüyor.
 - [ ] 1.2 Açılışta pembe açılış ekranı ve gökkuşaklı maskot görünüyor, ardından ana menü 1–3 saniyede açılıyor.
 - [ ] 1.3 Durum çubuğu gizli; üstte saat/pil simgeleri oyunun üstüne binmiyor.
+- [ ] 1.3b Türkçe harfler (Ş, ğ, İ, ı: "Prensesler ve Şatolar", "Gökkuşakları") başlıklardaki yuvarlak yazı tipiyle aynı görünüyor.
 - [ ] 1.4 Alt gezinme çubuğu (3 tuşlu ya da hareketle gezinme) düğmelerin üstüne binmiyor.
 - [ ] 1.5 Uygulama ilk açılışta **hiçbir izin istemiyor** (mikrofon, konum, depolama vb.).
 - [ ] 1.6 Uçak modunda da tamamen çalışıyor (internet gerekmiyor).
+- [ ] 1.7 **Ebeveyn Ayarları → Sürüm** satırı, indirdiğiniz sürüm sayfasındaki numarayla (1.0.N) aynı.
 
 ## 2. Ana menü
 
@@ -86,7 +88,8 @@ kendiliğinden başlamalı.
 - [ ] 6.5 **Prenses:** Etrafında pırıltılar beliriyor; taç ve yıldızlar parlıyor.
 - [ ] 6.6 **Peri:** Kanatları çırpıyor; **deniz kızı:** kuyruğu sallanıyor, baloncuklar yükseliyor.
 - [ ] 6.7 Animasyonlar akıcı (takılma ya da donma yok). Kutlama sırasında telefon aşırı ısınmıyor.
-- [ ] 6.8 İlk tamamlamada "Yeni çıkartma!" kartı dönerek beliriyor; aynı resmi tekrar bitirince yeni çıkartma verilmiyor.
+- [ ] 6.8 İlk tamamlamada "Yeni çıkartma!" kartı dönerek beliriyor. Aynı resmi tekrar bitirince ya da galeriden açıp ✓'ye basınca yeni çıkartma verilmiyor.
+- [ ] 6.8b Kutlama 8 saniye kadar sonra durduğunda karakter düzgün duruşuna dönüyor (kanatlar açık, kuyruk düz).
 - [ ] 6.9 Kutlamadaki düğmeler: ✓ boyamaya döndürüyor, → sonraki resmi açıyor, çerçeve galeriye götürüyor.
 - [ ] 6.10 Kutlama açıkken telefonun Geri tuşu yalnızca kutlamayı kapatıyor; boyama ekranında kalınıyor.
 
@@ -107,6 +110,7 @@ kendiliğinden başlamalı.
 
 - [ ] 9.1 Ana menüde kilit düğmesi, yazıyla bir çarpma sorusu soruyor (ör. "yedi çarpı sekiz kaç eder?").
 - [ ] 9.2 Yanlış cevapta pencere sallanıyor; üç yanlışta kapanıyor. Doğru cevapta ayarlar açılıyor.
+- [ ] 9.2b Telefon yan çevrilmişken de ebeveyn kapısının kapatma (X) düğmesi ve tüm rakam tuşları ekranda görünüyor.
 - [ ] 9.3 Ses efektleri / Müzik / Sesli rehber / Titreşim anahtarları anında etkili oluyor ve uygulama kapatılıp açılınca hatırlanıyor.
 - [ ] 9.4 "Solak düzeni" yatay ekranda araçları sağa, paleti sola alıyor.
 - [ ] 9.5 Sesli rehber için: **Ayarlar → Sistem → Diller → Metin okuma çıkışı** (Google TTS) altında **Türkçe** ses verisi yüklü olmalı. Yüklü değilse rehberin sessiz kalması beklenen davranıştır. Telefonun dili Türkçe olmasa da rehber Türkçe konuşmalı.
@@ -117,7 +121,8 @@ kendiliğinden başlamalı.
 - [ ] 10.1 Bir resmi yarım bırakıp geri çıkın, sonra tekrar açın: boyama aynen duruyor.
 - [ ] 10.2 Boyarken **Ana ekran** tuşuyla çıkın, uygulamayı son uygulamalardan kaydırarak tamamen kapatın, yeniden açın: son boyamalar kaybolmamış.
 - [ ] 10.3 Boyarken bir telefon araması / bildirim gelince uygulama çökmüyor; dönünce kaldığı yerden devam ediyor.
-- [ ] 10.4 Ekranı yatay/dikey çevirince düzen uyum sağlıyor ve boyama kaybolmuyor.
+- [ ] 10.4 Ekranı yatay/dikey çevirince düzen uyum sağlıyor ve boyama kaybolmuyor. Telefon yatayken boyama ekranında geri al, ileri al, bitti, ampul, çöp kutusu ve fırça kalınlığı düğmelerinin hepsi görünüyor ve basılabiliyor.
+- [ ] 10.4b Bir resmi bitirip kutlamadan galeriye gidin, aynı resmi kalemle tekrar açıp boyayın, sonra geri dönün: son boyamalar kaybolmuyor.
 - [ ] 10.5 Uzun ve yoğun fırça kullanımında (bir resme 5–10 dakika boyunca çizim) uygulama yavaşlamıyor.
 - [ ] 10.6 Telefonun yazı boyutu en büyüğe ayarlıyken ekranlar okunaklı ve düğmeler üst üste binmiyor.
 - [ ] 10.7 Karanlık mod açık telefonda da uygulama açık renkli pastel temasıyla görünüyor.

@@ -33,8 +33,10 @@ tüm telefonları), Android 7.0 (API 24) ve üzerinde çalışır.
 
 1. Telefonda **Chrome** ile yukarıdaki "Doğrudan APK" bağlantısını açın; dosya
    iner (~30–60 MB).
-2. İndirme bildirimine ya da **Dosyalar → İndirilenler →
-   MinikRenklerDunyasi.apk** dosyasına dokunun.
+2. **İndirme bildirimine** dokunun. Daha önce indirdiyseniz Chrome yeni
+   dosyayı `MinikRenklerDunyasi (1).apk` gibi bir adla kaydeder. Bu yüzden
+   İndirilenler klasöründen değil, bildirimden açın ya da eski dosyayı
+   silin.
 3. "Güvenlik nedeniyle telefonunuz bu kaynaktan bilinmeyen uygulamaları
    yüklemenize izin vermiyor" uyarısında **Ayarlar → Bu kaynaktan izin ver**
    seçeneğini açıp geri dönün.
@@ -46,10 +48,15 @@ tüm telefonları), Android 7.0 (API 24) ve üzerinde çalışır.
 **Güncelleme:** Yeni APK'yı aynı şekilde indirip üzerine kurun. Boyamalar,
 galeri ve çıkartmalar korunur.
 
+**Hangi sürüm kurulu?** Her GitHub derlemesinin numarası artar (1.0.N).
+Sürüm sayfasının başlığındaki numarayı, uygulamada **Ebeveyn Ayarları →
+Sürüm** satırıyla karşılaştırın. Aynıysa en son derleme kuruludur.
+
 **İmza notu:** GitHub test APK'sı Expo şablonunun test anahtarıyla
 imzalanır. EAS ile derlenmiş bir APK'ya geçerken (ya da tersi) Android
 "paket çakışıyor" der; önce eski uygulamayı kaldırmanız gerekir (bu,
-cihazdaki boyamaları siler).
+cihazdaki boyamaları siler). GitHub derlemelerinin sürüm numarası EAS
+derlemelerinden yüksek olduğu için de bu geçişte kaldırma gerekir.
 
 Bilgisayardan USB ile kurmak isterseniz (geliştirici seçenekleri → USB hata
 ayıklama açık):
@@ -69,7 +76,9 @@ profili Play Store'un istediği AAB dosyasını üretir.
 ### Bir kez yapılacaklar
 
 1. https://expo.dev/signup adresinden ücretsiz bir Expo hesabı açın.
-2. Bilgisayarınızda Node.js 20+ olsun; projeyi indirip bağımlılıkları kurun:
+2. Bilgisayarınızda Node.js 22 LTS (22.13 veya üstü) olsun. Expo SDK 58 bunu
+   gerektirir. Projeyi indirip bağımlılıkları kurun (`npm install`, gerekli
+   küçük yamayı `patches/` klasöründen otomatik uygular):
 
    ```bash
    git clone https://github.com/fuldenozsayin/boyama.git
@@ -98,6 +107,8 @@ profili Play Store'un istediği AAB dosyasını üretir.
 npx eas-cli@latest build --platform android --profile preview
 ```
 
+- `preview` profili yalnızca telefon işlemcileri için (arm64-v8a,
+  armeabi-v7a) derler; APK, GitHub APK'sıyla aynı boyuttadır.
 - İlk derlemede "Generate a new Android Keystore?" sorusuna **Yes** deyin.
   Anahtarı EAS saklar; sonraki derlemeler aynı imzayı kullanır.
 - Derleme Expo'nun sunucularında yapılır. Ücretsiz planda kuyruk + derleme

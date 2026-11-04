@@ -31,8 +31,8 @@ import { Particles } from './Particles';
 export const CLOCK_STEP = Platform.OS === 'android' ? 1 / 20 : 1 / 50;
 export const CLOCK_SECONDS = Platform.OS === 'android' ? 8 : 12;
 
-export function useClock(active: boolean, maxSeconds = CLOCK_SECONDS): number {
-  const [t, setT] = useState(0);
+export function useClock(active: boolean, maxSeconds = CLOCK_SECONDS): number | undefined {
+  const [t, setT] = useState<number | undefined>(0);
   useEffect(() => {
     if (!active) return;
     let raf = 0;
@@ -41,7 +41,7 @@ export function useClock(active: boolean, maxSeconds = CLOCK_SECONDS): number {
     const tick = () => {
       const now = (Date.now() - start) / 1000;
       if (now >= maxSeconds) {
-        setT(maxSeconds);
+        setT(undefined); // back to the rest pose (wings open, tails straight)
         return;
       }
       if (now - last >= CLOCK_STEP) {

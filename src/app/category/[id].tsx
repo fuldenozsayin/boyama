@@ -74,7 +74,9 @@ export default function CategoryScreen() {
     <View style={styles.root}>
       <PastelBackground top={lighten(cat.color, 0.3)} bottom={cat.color} />
       <ScreenHeader title={cat.title} backTo="/categories" />
-      <ScrollView contentContainerStyle={[styles.grid, { gap, paddingBottom: insets.bottom + 24 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.grid, { gap, paddingBottom: insets.bottom + 24, paddingLeft: 12 + insets.left, paddingRight: 12 + insets.right }]}
+      >
         {cat.pictures.map((p, i) => (
           <PictureCard key={p.id} pic={p} size={size} color={lighten(cat.accent, 0.45)} index={i} />
         ))}

@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware';
 import { STICKERS } from '../art/stickers';
+import { reportStorageError } from './storageHealth';
 
 export interface Settings {
   sfx: boolean;
@@ -16,6 +17,8 @@ export interface PicProgress {
   pct: number;
   done: boolean;
   at: number;
+  /** a sticker was already given for this artwork (survives gallery deletes) */
+  rewarded?: boolean;
 }
 
 export interface GalleryEntry {
@@ -38,8 +41,11 @@ interface AppState {
 
   setSetting: <K extends keyof Settings>(k: K, v: Settings[K]) => void;
   setProgress: (id: string, pct: number) => void;
-  /** mark an artwork finished; returns a newly earned sticker id (if any) */
-  complete: (artworkId: string, opts: { firstTimeReward: boolean }) => string | null;
+  /**
+   * Mark an artwork finished and put it at the top of the gallery. Returns a
+   * newly earned sticker id – at most once per artwork, and only if `reward`.
+   */
+  complete: (artworkId: string, opts: { reward: boolean }) => string | null;
   nextFreeId: () => string;
   removeArtwork: (id: string) => void;
   markStickersSeen: () => void;
@@ -51,6 +57,43 @@ const DEFAULT_SETTINGS: Settings = { sfx: true, music: true, voice: true, haptic
 export function starterStickerIds(): string[] {
   return STICKERS.slice(0, STARTER_STICKERS).map((s) => s.id);
 }
+
+/**
+ * Persist storage that never blocks start-up: a failed read still lets
+ * hydration finish (defaults for this session) and then refuses to write, so
+ * real saved progress is never overwritten by those defaults.
+ */
+let readOk = false;
+const safeStorage: PersistStorage<unknown> = {
+  getItem: async (name) => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const raw = await AsyncStorage.getItem(name);
+        const value = raw ? (JSON.parse(raw) as StorageValue<unknown>) : null;
+        readOk = true;
+        return value;
+      } catch (e) {
+        if (__DEV__) console.warn('[store] read failed', e);
+      }
+    }
+    return null;
+  },
+  setItem: async (name, value) => {
+    if (!readOk) return;
+    try {
+      await AsyncStorage.setItem(name, JSON.stringify(value));
+    } catch (e) {
+      reportStorageError(e);
+    }
+  },
+  removeItem: async (name) => {
+    try {
+      await AsyncStorage.removeItem(name);
+    } catch {
+      /* ignore */
+    }
+  },
+};
 
 export const useApp = create<AppState>()(
   persist(
@@ -71,12 +114,14 @@ export const useApp = create<AppState>()(
           return { progress: { ...s.progress, [id]: { pct, done: cur?.done ?? false, at: Date.now() } } };
         }),
 
-      complete: (artworkId, { firstTimeReward }) => {
+      complete: (artworkId, { reward }) => {
         const s = get();
-        const wasDone = s.progress[artworkId]?.done ?? false;
+        const prev = s.progress[artworkId];
+        // older saves have no `rewarded` flag: a finished artwork counts as rewarded
+        const alreadyRewarded = prev?.rewarded ?? prev?.done ?? false;
         const gallery = [{ id: artworkId, at: Date.now() }, ...s.gallery.filter((g) => g.id !== artworkId)];
         let earned: string | null = null;
-        if (!wasDone || !firstTimeReward) {
+        if (reward && !alreadyRewarded) {
           const owned = new Set([...starterStickerIds(), ...s.owned]);
           const next = STICKERS.find((st) => !owned.has(st.id));
           if (next) earned = next.id;
@@ -85,7 +130,12 @@ export const useApp = create<AppState>()(
           gallery,
           progress: {
             ...s.progress,
-            [artworkId]: { pct: s.progress[artworkId]?.pct ?? 1, done: true, at: Date.now() },
+            [artworkId]: {
+              pct: prev?.pct ?? 1,
+              done: true,
+              at: Date.now(),
+              rewarded: alreadyRewarded || reward,
+            },
           },
           owned: earned ? [...s.owned, earned] : s.owned,
           fresh: earned ? [...s.fresh, earned] : s.fresh,
@@ -115,7 +165,7 @@ export const useApp = create<AppState>()(
     {
       name: 'minik-renkler-app',
       version: 1,
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: safeStorage as PersistStorage<Partial<AppState>>,
       partialize: (s) => ({
         settings: s.settings,
         progress: s.progress,

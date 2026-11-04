@@ -21,6 +21,9 @@ on:
       - "eas.json"
       - "package.json"
       - "package-lock.json"
+      - "patches/**"
+      - "plugins/**"
+      - "eslint.config.js"
       - ".github/workflows/android-apk.yml"
 
 permissions:
@@ -60,6 +63,12 @@ jobs:
           npm run typecheck
           npx jest --ci
 
+      - name: Stamp a unique build version (CI only, not committed)
+        run: |
+          jq --arg n "$GITHUB_RUN_NUMBER" '.expo.android.versionCode = ($n|tonumber) | .expo.version = ("1.0." + $n)' app.json > app.json.tmp
+          mv app.json.tmp app.json
+          echo "APP_VERSION=1.0.$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
       - name: Generate the native Android project (Expo prebuild)
         run: npx expo prebuild --platform android --no-install --clean
 
@@ -95,13 +104,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete test-apk --yes --cleanup-tag || true
-          gh release create test-apk out/MinikRenklerDunyasi.apk out/SHA256.txt \
-            --prerelease \
-            --target "$GITHUB_SHA" \
-            --title "Minik Renkler Dünyası – Test APK" \
-            --notes "Telefonda test için otomatik derlenen APK (commit ${GITHUB_SHA::7}, mimariler: $ABIS).
+          NOTES="Telefonda test için otomatik derlenen APK. **Sürüm $APP_VERSION** (commit ${GITHUB_SHA::7}, mimariler: $ABIS).
 
-          **Kurulum:** Bu sayfadaki MinikRenklerDunyasi.apk dosyasını telefonun tarayıcısıyla indirin, açın ve tarayıcıya 'bilinmeyen uygulamaları yükleme' izni verin. Ayrıntılar: docs/ANDROID_APK.md · Test listesi: docs/TEST_LISTESI.md
+          **Kurulum:** Bu sayfadaki MinikRenklerDunyasi.apk dosyasını telefonun tarayıcısıyla indirin, indirme bildiriminden açın ve tarayıcıya 'bilinmeyen uygulamaları yükleme' izni verin. Kurduktan sonra Ebeveyn Ayarları → Sürüm satırının $APP_VERSION olduğunu kontrol edin. Ayrıntılar: docs/ANDROID_APK.md · Test listesi: docs/TEST_LISTESI.md
 
           Bu yapı test anahtarıyla imzalıdır; mağazaya yüklemek için EAS Build ile üretim derlemesi kullanın."
+          if gh release view test-apk > /dev/null 2>&1; then
+            # update in place: the download link never disappears
+            gh release upload test-apk out/MinikRenklerDunyasi.apk out/SHA256.txt --clobber
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/test-apk" -f sha="$GITHUB_SHA" -F force=true > /dev/null
+            gh release edit test-apk --prerelease --title "Minik Renkler Dünyası – Test APK $APP_VERSION" --notes "$NOTES"
+          else
+            gh release create test-apk out/MinikRenklerDunyasi.apk out/SHA256.txt \
+              --prerelease --target "$GITHUB_SHA" \
+              --title "Minik Renkler Dünyası – Test APK $APP_VERSION" --notes "$NOTES"
+          fi

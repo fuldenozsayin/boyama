@@ -84,7 +84,9 @@ export default function Categories() {
     <View style={styles.root}>
       <PastelBackground />
       <ScreenHeader icon="palette" />
-      <ScrollView contentContainerStyle={[styles.grid, { gap, paddingBottom: insets.bottom + 24 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.grid, { gap, paddingBottom: insets.bottom + 24, paddingLeft: 12 + insets.left, paddingRight: 12 + insets.right }]}
+      >
         {CATEGORIES.map((c, i) => (
           <CategoryCard key={c.id} cat={c} width={cardW} index={i} />
         ))}

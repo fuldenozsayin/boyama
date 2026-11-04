@@ -102,7 +102,9 @@ export default function Stickers() {
           </View>
         }
       />
-      <ScrollView contentContainerStyle={[styles.grid, { gap, paddingBottom: insets.bottom + 24 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.grid, { gap, paddingBottom: insets.bottom + 24, paddingLeft: 16 + insets.left, paddingRight: 16 + insets.right }]}
+      >
         {STICKERS.map((s, i) => (
           <StickerCell key={s.id} def={s} owned={ownedSet.has(s.id)} isNew={freshAtOpen.has(s.id)} size={size} index={i} />
         ))}

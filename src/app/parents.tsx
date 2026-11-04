@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import React, { useState } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ALL_PICTURES } from '../art';
@@ -11,6 +11,7 @@ import { PastelBackground } from '../components/ui/PastelBackground';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { t, type TKey } from '../i18n/tr';
 import { deleteAllArt } from '../store/artStorage';
+import { onStorageHealthChange, storageHasFailed } from '../store/storageHealth';
 import { ownedStickerIds, useApp, type Settings } from '../store/useApp';
 import { C, FONT, softShadow } from '../theme';
 
@@ -33,12 +34,19 @@ export default function Parents() {
   const [done, setDone] = useState(false);
 
   const completed = ALL_PICTURES.filter((p) => progress[p.id]?.done).length;
+  const storageFailed = useSyncExternalStore(onStorageHealthChange, storageHasFailed, storageHasFailed);
 
   return (
     <View style={styles.root}>
       <PastelBackground floaters={false} />
       <ScreenHeader title={t('parent.title')} />
       <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 30 }]}>
+        {storageFailed && (
+          <View style={[styles.card, styles.warn]} testID="storage-warning">
+            <Text style={styles.h}>⚠︎</Text>
+            <Text style={styles.p}>{t('parent.storageFull')}</Text>
+          </View>
+        )}
         <View style={[styles.card, softShadow(5)]}>
           {ROWS.map((r) => (
             <View key={r.key} style={styles.row}>
@@ -112,6 +120,7 @@ const styles = StyleSheet.create({
   body: { padding: 16, gap: 16, alignItems: 'stretch', maxWidth: 640, width: '100%', alignSelf: 'center' },
   card: { backgroundColor: '#fff', borderRadius: 24, padding: 18 },
   center: { alignItems: 'center' },
+  warn: { backgroundColor: '#FFF1E6', borderWidth: 3, borderColor: C.peachDeep },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: { fontFamily: FONT.regular, fontSize: 17, color: C.ink, flex: 1, paddingRight: 12 },

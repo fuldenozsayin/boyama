@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../../i18n/tr';
 import { C, FONT, softShadow } from '../../theme';
 import { tapFeedback } from '../../utils/feedback';
@@ -65,6 +66,8 @@ export function ParentGate({ visible, onPass, onClose }: { visible: boolean; onP
 }
 
 function GateBody({ onPass, onClose }: { onPass: () => void; onClose: () => void }) {
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [q, setQ] = useState(makeQuestion);
   const [input, setInput] = useState('');
   const [tries, setTries] = useState(0);
@@ -99,13 +102,21 @@ function GateBody({ onPass, onClose }: { onPass: () => void; onClose: () => void
     setInput((s) => (s.length < 3 ? s + k : s));
   };
 
+  // short windows (phones in landscape): question and keypad side by side
+  const compact = height < 520;
+  const keyH = compact ? 44 : 54;
   return (
-    <>
-      <View style={styles.backdrop}>
-        <Animated.View style={[styles.gate, softShadow(12), shakeStyle]} testID="parent-gate">
-          <Pressable onPress={onClose} style={styles.close} accessibilityRole="button" accessibilityLabel={t('close')} hitSlop={10}>
-            <Icon name="close" size={34} color={C.pinkMid} />
-          </Pressable>
+    <ScrollView
+      style={styles.gateScroll}
+      contentContainerStyle={[styles.gateScrollContent, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }]}
+      bounces={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Animated.View style={[styles.gate, compact && styles.gateCompact, softShadow(12), shakeStyle]} testID="parent-gate">
+        <Pressable onPress={onClose} style={styles.close} accessibilityRole="button" accessibilityLabel={t('close')} hitSlop={10}>
+          <Icon name="close" size={34} color={C.pinkMid} />
+        </Pressable>
+        <View style={styles.gateInfo}>
           <Text style={styles.gateTitle}>{t('parent.gateTitle')}</Text>
           <Text style={styles.gateHint}>{t('parent.gateHint')}</Text>
           <Text style={styles.question} testID="gate-question">
@@ -114,23 +125,23 @@ function GateBody({ onPass, onClose }: { onPass: () => void; onClose: () => void
           <View style={styles.answer}>
             <Text style={styles.answerText} testID="gate-answer">{input || ' '}</Text>
           </View>
-          <View style={styles.pad}>
-            {keys.map((k) => (
-              <Pressable
-                key={k}
-                onPress={() => press(k)}
-                style={({ pressed }) => [styles.key, k === 'OK' && styles.keyOk, pressed && { transform: [{ scale: 0.92 }] }]}
-                accessibilityRole="button"
-                accessibilityLabel={k === '⌫' ? 'Sil' : k}
-                testID={`gate-key-${k}`}
-              >
-                <Text style={styles.keyText}>{k}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </Animated.View>
-      </View>
-    </>
+        </View>
+        <View style={[styles.pad, compact && { marginTop: 0, gap: 8 }]}>
+          {keys.map((k) => (
+            <Pressable
+              key={k}
+              onPress={() => press(k)}
+              style={({ pressed }) => [styles.key, { height: keyH }, k === 'OK' && styles.keyOk, pressed && { transform: [{ scale: 0.92 }] }]}
+              accessibilityRole="button"
+              accessibilityLabel={k === '⌫' ? 'Sil' : k}
+              testID={`gate-key-${k}`}
+            >
+              {k === '⌫' ? <Icon name="back" size={30} color="#fff" /> : <Text style={styles.keyText}>{k}</Text>}
+            </Pressable>
+          ))}
+        </View>
+      </Animated.View>
+    </ScrollView>
   );
 }
 
@@ -163,7 +174,11 @@ const styles = StyleSheet.create({
     borderWidth: 5,
     borderColor: C.lilac,
   },
-  close: { position: 'absolute', right: 10, top: 10 },
+  close: { position: 'absolute', right: 10, top: 10, zIndex: 2 },
+  gateScroll: { flex: 1, backgroundColor: 'rgba(78, 61, 99, 0.35)' },
+  gateScrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  gateCompact: { flexDirection: 'row', width: 600, gap: 18, padding: 16, alignItems: 'center' },
+  gateInfo: { alignItems: 'center', flexShrink: 1 },
   gateTitle: { fontFamily: FONT.black, fontSize: 24, color: C.ink },
   gateHint: { fontFamily: FONT.regular, fontSize: 14, color: C.inkSoft, marginTop: 4 },
   question: { fontFamily: FONT.bold, fontSize: 21, color: C.lilacDeep, marginTop: 14, textAlign: 'center' },

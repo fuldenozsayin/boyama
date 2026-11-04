@@ -147,16 +147,24 @@ function borderFill(it: StickerDef['items'][number], color: string): string {
   return it.kind === 'region' || it.fill ? color : 'none';
 }
 
-export const StickerArt = memo(function StickerArt({ def, border = true }: { def: StickerDef; border?: boolean }) {
-  const shadow = 'rgba(78,61,99,0.16)';
+export const StickerArt = memo(function StickerArt({
+  def,
+  border = true,
+  shadow = true,
+}: {
+  def: StickerDef;
+  border?: boolean;
+  shadow?: boolean;
+}) {
+  const shadowColor = 'rgba(78,61,99,0.16)';
   return (
     <>
       {border && (
         <>
           {/* soft shadow + white die-cut border traced around every piece, lines included */}
-          <G transform="translate(3 6)">
+          <G transform="translate(3 6)" opacity={shadow ? 1 : 0}>
             {def.items.map((it, i) => (
-              <Path key={`sh-${i}`} d={it.d} fill={borderFill(it, shadow)} stroke={shadow} strokeWidth={borderWidth(it)} strokeLinejoin="round" strokeLinecap="round" />
+              <Path key={`sh-${i}`} d={it.d} fill={borderFill(it, shadowColor)} stroke={shadowColor} strokeWidth={borderWidth(it)} strokeLinejoin="round" strokeLinecap="round" />
             ))}
           </G>
           {def.items.map((it, i) => (
@@ -185,18 +193,20 @@ const PlacedStickerView = memo(function PlacedStickerView({
   x,
   y,
   selected,
+  shadow = true,
 }: {
   sticker: PlacedSticker;
   x: number;
   y: number;
   selected: boolean;
+  shadow?: boolean;
 }) {
   const def = getSticker(sticker.id);
   if (!def) return null;
   const s = sticker.s * (selected ? 1.08 : 1);
   return (
     <G transform={`matrix(${s} 0 0 ${s} ${x - 100 * s} ${y - 100 * s})`}>
-      <StickerArt def={def} />
+      <StickerArt def={def} shadow={shadow} />
     </G>
   );
 });
@@ -322,6 +332,8 @@ function ArtSvgImpl({
             />
           );
         }
+        // overlay mode: translucent decor (cheeks, gloss) is already visible underneath
+        if (liveOnly && item.opacity !== undefined && item.opacity < 1) return null;
         return <DecorView key={i} item={item} transform={tf(item.part)} />;
       })}
       {showStickers &&
@@ -330,7 +342,7 @@ function ArtSvgImpl({
           if (st.uid === hiddenSticker) return null;
           if (liveOnly && !boxesOverlap({ x0: st.x - 110 * st.s, y0: st.y - 110 * st.s, x1: st.x + 110 * st.s, y1: st.y + 110 * st.s }, view))
             return null;
-          return <PlacedStickerView key={st.uid} sticker={st} x={st.x} y={st.y} selected={false} />;
+          return <PlacedStickerView key={st.uid} sticker={st} x={st.x} y={st.y} selected={false} shadow={!liveOnly} />;
         })}
     </Svg>
   );

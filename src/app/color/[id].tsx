@@ -24,12 +24,14 @@ import {
   type PaintKind,
   type PaintState,
 } from '../../engine/paint';
-import { loadArt, saveArt } from '../../store/artStorage';
+import { loadArt, peekArt, saveArt } from '../../store/artStorage';
 import { ownedStickerIds, useApp } from '../../store/useApp';
 import { C, FONT, softShadow } from '../../theme';
 import { haptic } from '../../utils/feedback';
 
 const BRUSH_W = [14, 30, 58];
+/** width of Android's edge back-gesture zone (dp), generous for high sensitivity */
+const BACK_EDGE = 40;
 const ERASER_W = [26, 48, 84];
 
 export default function ColorScreen() {
@@ -56,6 +58,9 @@ export default function ColorScreen() {
   // the artwork whose saved state has been loaded (derived readiness: no reset needed on id change)
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const ready = loadedId === artworkId;
+  // a saved drawing that could not be read: never treat it as a blank page
+  const [loadFailedId, setLoadFailedId] = useState<string | null>(null);
+  const loadFailed = loadFailedId === artworkId;
 
   const [tool, setTool] = useState<Tool>('fill');
   const [color, setColor] = useState('#FF8FC7');
@@ -69,6 +74,9 @@ export default function ColorScreen() {
   const [celebration, setCelebration] = useState<{ state: PaintState; sticker: string | null } | null>(null);
 
   const prevPct = useRef<number | null>(null);
+  const celebrating = useRef(false);
+  /** the state as loaded from storage: opening a page alone never writes it back */
+  const loadedState = useRef<PaintState | null>(null);
   const paint = useMemo(() => ({ k: kind, c: color }), [kind, color]);
   const compiled = useMemo(() => (picture ? compilePicture(picture) : null), [picture]);
   const regionIds = useMemo(() => compiled?.regions.map((r) => r.id) ?? [], [compiled]);
@@ -79,12 +87,20 @@ export default function ColorScreen() {
   useEffect(() => {
     let alive = true;
     prevPct.current = null;
-    loadArt(artworkId).then((s) => {
-      if (!alive) return;
-      dispatch({ type: 'load', state: s ?? EMPTY_STATE });
-      setHint(null);
-      setLoadedId(artworkId);
-    });
+    celebrating.current = false;
+    loadArt(artworkId).then(
+      (s) => {
+        if (!alive) return;
+        const loaded = s ?? EMPTY_STATE;
+        loadedState.current = loaded;
+        dispatch({ type: 'load', state: loaded });
+        setHint(null);
+        setLoadedId(artworkId);
+      },
+      () => {
+        if (alive) setLoadFailedId(artworkId);
+      },
+    );
     voice.say(free ? 'voice.freeDraw' : 'voice.startColoring');
     return () => {
       alive = false;
@@ -104,11 +120,29 @@ export default function ColorScreen() {
 
   useEffect(() => {
     if (!ready) return;
+    if (!free) setProgress(artworkId, pct);
+    if (state === loadedState.current) return; // nothing changed since it was loaded
+    loadedState.current = null; // an undo back to the loaded state must still save
     dirty.current = true;
     const tmr = setTimeout(saveNow, 450);
-    if (!free) setProgress(artworkId, pct);
     return () => clearTimeout(tmr);
   }, [state, ready, saveNow, free, artworkId, pct, setProgress]);
+
+  // Coming back to this screen: if another screen saved newer work for the same
+  // artwork (e.g. opened again from the gallery), show that instead of stale art.
+  // Leaving the screen flushes pending changes first, so this never drops edits.
+  useFocusEffect(
+    useCallback(() => {
+      if (ready) {
+        const cached = peekArt(artworkId);
+        if (cached && cached !== latestState.current) {
+          loadedState.current = cached;
+          dispatch({ type: 'load', state: cached });
+        }
+      }
+      return () => saveNow();
+    }, [artworkId, ready, saveNow]),
+  );
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
@@ -126,6 +160,8 @@ export default function ColorScreen() {
 
   // ------------------------------------------------------------- celebration
   const celebrate = useCallback(() => {
+    if (celebrating.current) return; // a fast double tap on Done
+    celebrating.current = true;
     saveNow();
     sound.stopLoop();
     let target = artworkId;
@@ -137,12 +173,16 @@ export default function ColorScreen() {
       saveArt('free', EMPTY_STATE);
       dirty.current = false;
     }
-    const earned = complete(target, { firstTimeReward: !free });
+    // free drawings earn a sticker only for a real drawing (not a single dot)
+    const st = latestState.current;
+    const effort = Object.values(st.strokes).reduce((n, l) => n + l.length, 0) + Object.keys(st.fills).length + st.stickers.length;
+    const earned = complete(target, { reward: !free || effort >= 3 });
     setHint(null);
     setCelebration({ state: latestState.current, sticker: earned });
   }, [artworkId, complete, free, nextFreeId, saveNow]);
 
   const closeCelebration = useCallback(() => {
+    celebrating.current = false;
     setCelebration(null);
     if (artworkId === 'free') dispatch({ type: 'load', state: EMPTY_STATE });
   }, [artworkId]);
@@ -166,7 +206,10 @@ export default function ColorScreen() {
           return true;
         }
         // an edge back-swipe that started on the canvas is a drawing slip, not "leave"
-        if (Date.now() - lastCanvasTouch.current < 1000) return true;
+        if (Date.now() - lastCanvasTouch.current < 1000) {
+          lastCanvasTouch.current = 0;
+          return true;
+        }
         if (st.zoomed) {
           setZoomReset((n) => n + 1);
           setZoomed(false);
@@ -293,12 +336,15 @@ export default function ColorScreen() {
   // ------------------------------------------------------------- layout
   // keep the canvas away from Android's edge back-gesture zone
   const pad = Platform.OS === 'android' ? 16 : 10;
-  const btn = landscape ? 58 : 54;
+  // landscape side column holds back + 4 tools: size the buttons from the height
+  const colAvail = height - insets.top - insets.bottom - pad * 2;
+  const btn = landscape ? Math.max(44, Math.min(58, Math.floor((colAvail - 4 * 10 - 12) / 5))) : 54;
   // portrait tool row: 4 tools + hint + trash (or 4 tools + 3 size dots) must fit the width
   const rowAvail = width - insets.left - insets.right - 16 - 20;
   const tb = landscape ? btn : Math.max(40, Math.min(54, Math.floor((rowAvail - 6 * 6) / 6.4)));
-  const sideTools = 92;
-  const sidePalette = Math.min(270, Math.max(190, width * 0.22));
+  const sideTools = btn + 34;
+  // palette card must fit undo + redo + done (and hint + trash / size dots) on one row
+  const sidePalette = Math.min(290, Math.max(3 * btn + 6 + 16 + 12 + 8, width * 0.22));
   const topBar = 70;
   // fixed height so the canvas never jumps when switching tools
   const paletteH = 122;
@@ -420,7 +466,7 @@ export default function ColorScreen() {
 
   const sizes =
     tool === 'brush' || tool === 'eraser' ? (
-      <SizePicker value={sizeIdx} onChange={setSizeIdx} color={tool === 'eraser' ? '#fff' : color} vertical={landscape} size={Math.round(tb * 0.78)} />
+      <SizePicker value={sizeIdx} onChange={setSizeIdx} color={tool === 'eraser' ? '#fff' : color} size={Math.round(tb * 0.78)} />
     ) : null;
 
   const palette =
@@ -435,14 +481,17 @@ export default function ColorScreen() {
     );
 
   const canvas = (
-    <View
-      style={[styles.canvasWrap, softShadow(10), { width: canvasSize + 12, height: canvasSize + 12 }]}
-      onTouchStart={() => {
-        lastCanvasTouch.current = Date.now();
-      }}
-    >
+    <View style={[styles.canvasWrap, softShadow(10), { width: canvasSize + 12, height: canvasSize + 12 }]}>
       {ready ? (
-        <Animated.View entering={FadeIn.duration(250)}>
+        <Animated.View
+          entering={FadeIn.duration(250)}
+          onTouchStart={(e) => {
+            // a touch that begins inside Android's edge back-gesture zone may turn into a
+            // back swipe: remember it so that Back does not close the page mid-drawing
+            const x = e.nativeEvent.pageX;
+            if (x < BACK_EDGE || x > width - BACK_EDGE) lastCanvasTouch.current = Date.now();
+          }}
+        >
           <ColoringCanvas
             picture={picture}
             state={state}
@@ -459,6 +508,28 @@ export default function ColorScreen() {
             prefix={`cv${artworkId}`}
           />
         </Animated.View>
+      ) : loadFailed ? (
+        <View style={[styles.loadFailed, { width: canvasSize, height: canvasSize }]} testID="load-failed">
+          <Icon name="palette" size={Math.min(140, canvasSize * 0.35)} />
+          <Text style={styles.loadFailedText}>Bu resim açılamadı.</Text>
+          <View style={styles.loadFailedRow}>
+            <BubbleButton a11y="Geri" size={64} color={C.pinkMid} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}>
+              <Icon name="back" size={40} />
+            </BubbleButton>
+            <BubbleButton
+              a11y="Yeni sayfa ile başla"
+              size={64}
+              color={C.mintMid}
+              onPress={() => {
+                loadedState.current = EMPTY_STATE;
+                dispatch({ type: 'load', state: EMPTY_STATE });
+                setLoadedId(artworkId);
+              }}
+            >
+              <Icon name="plus" size={40} />
+            </BubbleButton>
+          </View>
+        </View>
       ) : (
         <View style={{ width: canvasSize, height: canvasSize }} />
       )}
@@ -470,6 +541,7 @@ export default function ColorScreen() {
             size={50}
             color="#fff"
             onPress={() => {
+              lastCanvasTouch.current = 0;
               setZoomReset((n) => n + 1);
               setZoomed(false);
             }}
@@ -502,8 +574,6 @@ export default function ColorScreen() {
           <View style={[styles.sideCol, { width: sideTools }]}>
             {backBtn}
             <View style={styles.colGroup}>{tools}</View>
-            {sizes}
-            <View style={styles.colGroup}>{extraBtns}</View>
           </View>
           <View style={styles.center}>{canvas}</View>
           <View style={[styles.paletteCol, softShadow(6), { width: sidePalette }]}>
@@ -511,6 +581,7 @@ export default function ColorScreen() {
               {historyBtns}
               {doneBtn}
             </View>
+            <View style={[styles.topRow, { alignItems: 'center' }]}>{sizes ?? extraBtns}</View>
             {progressMeter}
             <View style={styles.flex}>{palette}</View>
           </View>
@@ -542,16 +613,16 @@ export default function ColorScreen() {
           earnedSticker={celebration.sticker}
           onContinue={closeCelebration}
           onGallery={() => {
-            setCelebration(null);
-            if (artworkId === 'free') dispatch({ type: 'load', state: EMPTY_STATE });
-            router.push('/gallery');
+            closeCelebration();
+            // go back to an existing gallery, or replace this screen with it
+            router.dismissTo('/gallery');
           }}
           onNext={
             free
               ? undefined
               : () => {
                   const nxt = nextPicture(picture.id);
-                  setCelebration(null);
+                  closeCelebration();
                   if (nxt) router.replace({ pathname: '/color/[id]', params: { id: nxt.id } });
                 }
           }
@@ -577,6 +648,9 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
   missing: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loadFailed: { alignItems: 'center', justifyContent: 'center', gap: 14, backgroundColor: '#FFF7FB' },
+  loadFailedText: { fontFamily: FONT.bold, fontSize: 18, color: C.ink },
+  loadFailedRow: { flexDirection: 'row', gap: 22 },
   hidden: { position: 'absolute', opacity: 0 },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
