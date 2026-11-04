@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -24,8 +24,15 @@ import { BubbleButton } from '../ui/BubbleButton';
 import { Icon } from '../ui/Icon';
 import { Particles } from './Particles';
 
-/** requestAnimationFrame clock in seconds, ~60 fps while mounted */
-function useClock(active: boolean): number {
+/**
+ * Animation clock in seconds driving the picture's character animation.
+ * Every tick re-renders the SVG (rasterised on the CPU on Android), so it is
+ * capped at 30 fps there and settles after `maxSeconds`.
+ */
+export const CLOCK_STEP = Platform.OS === 'android' ? 1 / 20 : 1 / 50;
+export const CLOCK_SECONDS = Platform.OS === 'android' ? 8 : 12;
+
+export function useClock(active: boolean, maxSeconds = CLOCK_SECONDS): number {
   const [t, setT] = useState(0);
   useEffect(() => {
     if (!active) return;
@@ -34,7 +41,11 @@ function useClock(active: boolean): number {
     let last = 0;
     const tick = () => {
       const now = (Date.now() - start) / 1000;
-      if (now - last >= 1 / 50) {
+      if (now >= maxSeconds) {
+        setT(maxSeconds);
+        return;
+      }
+      if (now - last >= CLOCK_STEP) {
         last = now;
         setT(now);
       }
@@ -42,7 +53,7 @@ function useClock(active: boolean): number {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [active]);
+  }, [active, maxSeconds]);
   return t;
 }
 
@@ -60,7 +71,8 @@ export function Celebration({ picture, state, earnedSticker, onContinue, onNext,
   const insets = useSafeAreaInsets();
   const t = useClock(true);
   const landscape = width > height;
-  const artSize = Math.min(landscape ? height * 0.62 : width * 0.78, landscape ? width * 0.42 : height * 0.5, 560);
+  // every animation tick re-rasterises this SVG on the CPU on Android: keep it modest
+  const artSize = Math.min(landscape ? height * 0.62 : width * 0.78, landscape ? width * 0.42 : height * 0.5, Platform.OS === 'android' ? 380 : 560);
 
   const pop = useSharedValue(0.3);
   const wobble = useSharedValue(0);
@@ -83,7 +95,7 @@ export function Celebration({ picture, state, earnedSticker, onContinue, onNext,
         sound.play('sticker');
         later(300, () => sound.play('twinkle'));
       });
-      later(3200, () => voice.say('voice.newSticker', { force: true }));
+      later(3200, () => voice.say('voice.newSticker', { force: true, queue: true }));
     }
     const list = timers.current;
     return () => list.forEach(clearTimeout);

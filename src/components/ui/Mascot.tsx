@@ -1,5 +1,7 @@
+import { useIsFocused } from 'expo-router';
 import React, { memo, useEffect, useState } from 'react';
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
@@ -18,8 +20,13 @@ import { MASCOT as M, MASCOT_BRUSH_TIP, MASCOT_COLOR } from '../../art/mascot';
 export const Mascot = memo(function Mascot({ size = 160, color = MASCOT_COLOR }: { size?: number; color?: string }) {
   const [blink, setBlink] = useState(false);
   const float = useSharedValue(0);
+  const focused = useIsFocused();
 
   useEffect(() => {
+    if (!focused) {
+      cancelAnimation(float);
+      return;
+    }
     float.value = withRepeat(
       withSequence(
         withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
@@ -45,7 +52,7 @@ export const Mascot = memo(function Mascot({ size = 160, color = MASCOT_COLOR }:
       alive = false;
       clearTimeout(timer);
     };
-  }, [float]);
+  }, [float, focused]);
 
   const style = useAnimatedStyle(() => ({
     transform: [{ translateY: -8 * float.value }, { rotate: `${(float.value - 0.5) * 6}deg` }],

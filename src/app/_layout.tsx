@@ -33,6 +33,7 @@ export default function RootLayout() {
   useEffect(() => {
     sound.init();
     sound.preload();
+    voice.init();
     const sub = AppState.addEventListener('change', (st) => {
       if (st === 'active') sound.resume();
       else {

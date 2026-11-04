@@ -1,6 +1,6 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { AppState, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AppState, BackHandler, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getPicture, isFreeId, nextPicture } from '../../art';
@@ -130,11 +130,50 @@ export default function ColorScreen() {
     if (artworkId === 'free') {
       target = nextFreeId();
       saveArt(target, latestState.current);
+      // the working page is emptied right away, so leaving the celebration in any
+      // way (Android Back included) can never save the same drawing twice
+      saveArt('free', EMPTY_STATE);
+      dirty.current = false;
     }
     const earned = complete(target, { firstTimeReward: !free });
     setHint(null);
     setCelebration({ state: latestState.current, sticker: earned });
   }, [artworkId, complete, free, nextFreeId, saveNow]);
+
+  const closeCelebration = useCallback(() => {
+    setCelebration(null);
+    if (artworkId === 'free') dispatch({ type: 'load', state: EMPTY_STATE });
+  }, [artworkId]);
+
+  // ------------------------------------------------------------- Android back
+  const lastCanvasTouch = useRef(0);
+  const backState = useRef({ celebration: false, confirmReset: false, zoomed: false });
+  backState.current = { celebration: !!celebration, confirmReset, zoomed };
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        const st = backState.current;
+        if (st.celebration) {
+          closeCelebration();
+          return true;
+        }
+        if (st.confirmReset) {
+          setConfirmReset(false);
+          return true;
+        }
+        // an edge back-swipe that started on the canvas is a drawing slip, not "leave"
+        if (Date.now() - lastCanvasTouch.current < 1000) return true;
+        if (st.zoomed) {
+          setZoomReset((n) => n + 1);
+          setZoomed(false);
+          return true;
+        }
+        saveNow();
+        return false; // default: go back
+      });
+      return () => sub.remove();
+    }, [closeCelebration, saveNow]),
+  );
 
   // auto-celebrate the moment the last region gets coloured
   useEffect(() => {
@@ -248,14 +287,18 @@ export default function ColorScreen() {
   }
 
   // ------------------------------------------------------------- layout
-  const pad = 10;
+  // keep the canvas away from Android's edge back-gesture zone
+  const pad = Platform.OS === 'android' ? 16 : 10;
   const btn = landscape ? 58 : 54;
+  // portrait tool row: 4 tools + hint + trash (or 4 tools + 3 size dots) must fit the width
+  const rowAvail = width - insets.left - insets.right - 16 - 20;
+  const tb = landscape ? btn : Math.max(40, Math.min(54, Math.floor((rowAvail - 6 * 6) / 6.4)));
   const sideTools = 92;
   const sidePalette = Math.min(270, Math.max(190, width * 0.22));
   const topBar = 70;
   // fixed height so the canvas never jumps when switching tools
   const paletteH = 122;
-  const bottomPanel = btn + 16 + paletteH + 10;
+  const bottomPanel = tb + 16 + paletteH + 10;
   const canvasSize = Math.floor(
     landscape
       ? Math.min(height - insets.top - insets.bottom - pad * 2, width - insets.left - insets.right - sideTools - sidePalette - pad * 4)
@@ -331,13 +374,13 @@ export default function ColorScreen() {
     <BubbleButton
       key={t}
       a11y={label}
-      size={btn}
+      size={tb}
       color={tool === t ? tint : '#FFFFFF'}
       selected={tool === t}
       onPress={() => chooseTool(t)}
       testID={`tool-${t}`}
     >
-      <Icon name={icon} size={btn * 0.68} color={t === 'eraser' ? C.pinkMid : kind === 'rainbow' ? '#B48CFF' : color} accent={C.yellowMid} />
+      <Icon name={icon} size={tb * 0.68} color={t === 'eraser' ? C.pinkMid : kind === 'rainbow' ? '#B48CFF' : color} accent={C.yellowMid} />
     </BubbleButton>
   );
 
@@ -351,13 +394,13 @@ export default function ColorScreen() {
   const extraBtns = (
     <>
       {!free && (
-        <BubbleButton a11y="İpucu" size={btn} color={C.yellow} onPress={showHint} testID="hint">
-          <Icon name="bulb" size={btn * 0.66} color="#FFE27A" />
+        <BubbleButton a11y="İpucu" size={tb} color={C.yellow} onPress={showHint} testID="hint">
+          <Icon name="bulb" size={tb * 0.66} color="#FFE27A" />
         </BubbleButton>
       )}
       <BubbleButton
         a11y="Sayfayı temizle"
-        size={btn}
+        size={tb}
         color={C.peachMid}
         disabled={isBlank(state)}
         onPress={() => {
@@ -366,14 +409,14 @@ export default function ColorScreen() {
         }}
         testID="reset"
       >
-        <Icon name="trash" size={btn * 0.64} color={C.pinkMid} />
+        <Icon name="trash" size={tb * 0.64} color={C.pinkMid} />
       </BubbleButton>
     </>
   );
 
   const sizes =
     tool === 'brush' || tool === 'eraser' ? (
-      <SizePicker value={sizeIdx} onChange={setSizeIdx} color={tool === 'eraser' ? '#fff' : color} vertical={landscape} />
+      <SizePicker value={sizeIdx} onChange={setSizeIdx} color={tool === 'eraser' ? '#fff' : color} vertical={landscape} size={Math.round(tb * 0.78)} />
     ) : null;
 
   const palette =
@@ -388,7 +431,12 @@ export default function ColorScreen() {
     );
 
   const canvas = (
-    <View style={[styles.canvasWrap, softShadow(10), { width: canvasSize + 12, height: canvasSize + 12 }]}>
+    <View
+      style={[styles.canvasWrap, softShadow(10), { width: canvasSize + 12, height: canvasSize + 12 }]}
+      onTouchStart={() => {
+        lastCanvasTouch.current = Date.now();
+      }}
+    >
       {ready ? (
         <Animated.View entering={FadeIn.duration(250)}>
           <ColoringCanvas
@@ -414,6 +462,7 @@ export default function ColorScreen() {
         <View style={styles.zoomBtn}>
           <BubbleButton
             a11y="Yakınlaştırmayı sıfırla"
+            hitSlop={0}
             size={50}
             color="#fff"
             onPress={() => {
@@ -487,10 +536,7 @@ export default function ColorScreen() {
           picture={picture}
           state={celebration.state}
           earnedSticker={celebration.sticker}
-          onContinue={() => {
-            setCelebration(null);
-            if (artworkId === 'free') dispatch({ type: 'load', state: EMPTY_STATE });
-          }}
+          onContinue={closeCelebration}
           onGallery={() => {
             setCelebration(null);
             if (artworkId === 'free') dispatch({ type: 'load', state: EMPTY_STATE });
@@ -544,7 +590,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
     paddingVertical: 8,
   },
-  toolRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingBottom: 4 },
+  toolRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingBottom: 4 },
   divider: { height: 2, backgroundColor: '#F1EAF8', marginHorizontal: 18, marginVertical: 2, borderRadius: 1 },
   landscape: { flex: 1 },
   sideCol: { alignItems: 'center', justifyContent: 'space-between' },

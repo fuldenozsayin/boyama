@@ -15,6 +15,8 @@ export interface CompiledPicture {
   /** regions in z-order, bottom first */
   regions: CompiledRegion[];
   byId: Record<string, CompiledRegion>;
+  /** bounding box of every item (same index as picture.items), padded by its line width */
+  itemBoxes: BBox[];
 }
 
 const cache = new WeakMap<Picture, CompiledPicture>();
@@ -25,14 +27,18 @@ export function compilePicture(picture: Picture): CompiledPicture {
   if (hit) return hit;
   const regions: CompiledRegion[] = [];
   const byId: Record<string, CompiledRegion> = {};
+  const itemBoxes: BBox[] = [];
   picture.items.forEach((item, z) => {
-    if (item.kind !== 'region') return;
     const polys = flattenPath(item.d, 8);
-    const r: CompiledRegion = { id: item.id, item, z, polys, bbox: bboxOf(polys) };
+    const b = bboxOf(polys);
+    const pad = (item.kind === 'region' ? item.line ?? 7 : item.width ?? 5) / 2 + 1;
+    itemBoxes.push(polys.length ? { x0: b.x0 - pad, y0: b.y0 - pad, x1: b.x1 + pad, y1: b.y1 + pad } : { x0: 0, y0: 0, x1: 0, y1: 0 });
+    if (item.kind !== 'region') return;
+    const r: CompiledRegion = { id: item.id, item, z, polys, bbox: b };
     regions.push(r);
     byId[item.id] = r;
   });
-  const compiled = { picture, regions, byId };
+  const compiled = { picture, regions, byId, itemBoxes };
   cache.set(picture, compiled);
   return compiled;
 }
@@ -63,4 +69,8 @@ export function visibleSamples(cp: CompiledPicture, step = 5): Record<string, Pt
     }
   }
   return out;
+}
+
+export function boxesOverlap(a: BBox, b: BBox): boolean {
+  return a.x0 <= b.x1 && b.x0 <= a.x1 && a.y0 <= b.y1 && b.y0 <= a.y1;
 }

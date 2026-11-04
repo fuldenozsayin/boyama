@@ -1,6 +1,8 @@
+import { useIsFocused } from 'expo-router';
 import React, { memo, useEffect } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
@@ -36,7 +38,13 @@ const FLOATERS: Floater[] = [
 
 const FloatingShape = memo(function FloatingShape({ f, w, h }: { f: Floater; w: number; h: number }) {
   const t = useSharedValue(0);
+  const focused = useIsFocused();
   useEffect(() => {
+    // screens below the top of the stack stay mounted: don't animate them
+    if (!focused) {
+      cancelAnimation(t);
+      return;
+    }
     t.value = withDelay(
       f.delay,
       withRepeat(
@@ -47,7 +55,7 @@ const FloatingShape = memo(function FloatingShape({ f, w, h }: { f: Floater; w: 
         -1,
       ),
     );
-  }, [f, t]);
+  }, [f, t, focused]);
   const style = useAnimatedStyle(() => ({
     transform: [{ translateY: -f.drift * t.value }, { rotate: `${(t.value - 0.5) * 8}deg` }],
   }));

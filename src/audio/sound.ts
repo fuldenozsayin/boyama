@@ -1,4 +1,5 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import { Platform } from 'react-native';
 import type { SoundKey } from '../art/types';
 
 /**
@@ -39,7 +40,8 @@ const SOURCES = {
 export type SfxKey = keyof typeof SOURCES;
 export type LoopKey = 'brush' | 'erase' | 'sparkle';
 
-const POOL: Partial<Record<SfxKey, number>> = { tap: 2, pop0: 2, pop1: 2, pop2: 2, pop3: 2, pop4: 2, pop5: 2, pop6: 2, pop7: 2 };
+// each Android player is a full ExoPlayer: keep the pool small
+const POOL: Partial<Record<SfxKey, number>> = { tap: 2 };
 const VOLUME: Partial<Record<SfxKey, number>> = {
   tap: 0.45,
   whoosh: 0.35,
@@ -64,10 +66,14 @@ class SoundEngine {
   init() {
     if (this.ready) return;
     this.ready = true;
-    // respect the device silent switch and never interrupt other audio
-    setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers', shouldPlayInBackground: false }).catch(
-      () => {},
-    );
+    // Android: `false` would mute every sound whenever the phone is on vibrate
+    // (very common) and pause the music on ringer changes. iOS keeps respecting
+    // the silent switch. Never interrupt other apps' audio.
+    setAudioModeAsync({
+      playsInSilentMode: Platform.OS === 'android',
+      interruptionMode: 'mixWithOthers',
+      shouldPlayInBackground: false,
+    }).catch(() => {});
   }
 
   private player(key: SfxKey): AudioPlayer | null {
@@ -87,9 +93,11 @@ class SoundEngine {
     }
   }
 
-  /** warm up the most common players so the first tap is instant */
+  /** warm up the most common players (after start-up) so the first tap is instant */
   preload() {
-    (['tap', 'pop0', 'pop2', 'pop4', 'celebrate', 'brush'] as SfxKey[]).forEach((k) => this.player(k));
+    setTimeout(() => {
+      (['tap', 'whoosh', 'pop0', 'pop2', 'pop4', 'celebrate'] as SfxKey[]).forEach((k) => this.player(k));
+    }, 1200);
   }
 
   setEnabled(sfx: boolean, music: boolean) {
@@ -105,12 +113,17 @@ class SoundEngine {
     const p = this.player(key);
     if (!p) return;
     try {
-      p.loop = false;
       p.seekTo(0).catch(() => {});
       p.play();
     } catch {
       // audio is a nice-to-have; never crash the game for it
     }
+    this.ensureMusic();
+  }
+
+  /** music can be paused natively (headphones unplugged…): restart on the next tap */
+  private ensureMusic() {
+    if (this.musicWanted && this.musicOn && !this.musicPlaying) this.startMusic();
   }
 
   /** soft musical "bloop" walking up and down a pentatonic scale */
@@ -154,12 +167,21 @@ class SoundEngine {
     this.activeLoop = null;
   }
 
+  private musicListening = false;
+
   startMusic() {
     this.musicWanted = true;
     if (!this.musicOn || this.musicPlaying) return;
     const p = this.player('music');
     if (!p) return;
     try {
+      if (!this.musicListening) {
+        this.musicListening = true;
+        // keep the JS flag in sync with native pauses (audio focus, noisy, …)
+        p.addListener('playbackStatusUpdate', (st) => {
+          this.musicPlaying = st.playing;
+        });
+      }
       p.loop = true;
       p.play();
       this.musicPlaying = true;

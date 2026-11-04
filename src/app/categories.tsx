@@ -25,7 +25,8 @@ function CategoryCard({ cat, width, index }: { cat: Category; width: number; ind
   const coverPic = getPicture(cat.cover.pictureId) ?? cat.pictures[0];
   const art = width - 28;
   return (
-    <Animated.View entering={FadeInUp.delay(80 * index).springify()} style={style}>
+    <Animated.View entering={FadeInUp.delay(80 * index).springify()}>
+      <Animated.View style={style}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={cat.title}
@@ -63,6 +64,7 @@ function CategoryCard({ cat, width, index }: { cat: Category; width: number; ind
           {cat.title}
         </Text>
       </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }

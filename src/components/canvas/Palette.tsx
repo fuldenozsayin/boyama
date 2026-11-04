@@ -227,16 +227,19 @@ export const SizePicker = memo(function SizePicker({
   onChange,
   color,
   vertical,
+  size = 44,
 }: {
   value: number;
   onChange: (i: number) => void;
   color: string;
   vertical?: boolean;
+  /** diameter of each choice in px */
+  size?: number;
 }) {
   return (
     <View style={[styles.sizes, vertical && { flexDirection: 'column' }]}>
       {[0, 1, 2].map((i) => {
-        const r = 7 + i * 6;
+        const r = (7 + i * 6) * (size / 44);
         const sel = i === value;
         return (
           <Pressable
@@ -251,8 +254,8 @@ export const SizePicker = memo(function SizePicker({
             style={[styles.sizeBtn, sel && styles.sizeSel]}
             testID={`size-${i}`}
           >
-            <Svg width={44} height={44} viewBox="0 0 44 44">
-              <Circle cx={22} cy={22} r={r} fill={color} stroke={INK} strokeWidth={3} />
+            <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+              <Circle cx={size / 2} cy={size / 2} r={r} fill={color} stroke={INK} strokeWidth={3} />
             </Svg>
           </Pressable>
         );

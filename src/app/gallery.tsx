@@ -1,12 +1,13 @@
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { FlatList, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeInUp, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getPicture } from '../art';
 import { sound } from '../audio/sound';
 import { voice } from '../audio/voice';
 import { ArtSvg } from '../components/art/ArtSvg';
+import { CLOCK_STEP } from '../components/celebration/Celebration';
 import { ArtThumb } from '../components/art/ArtThumb';
 import { BubbleButton } from '../components/ui/BubbleButton';
 import { ConfirmDialog, ParentGate } from '../components/ui/Dialogs';
@@ -34,13 +35,17 @@ function Viewer({ id, onClose, onDelete }: { id: string; onClose: () => void; on
     if (t === undefined) return;
     let raf = 0;
     const start = Date.now() - t * 1000;
+    let last = -1;
     const tick = () => {
       const now = (Date.now() - start) / 1000;
       if (now > 6) {
         setT(undefined);
         return;
       }
-      setT(now);
+      if (now - last >= CLOCK_STEP) {
+        last = now;
+        setT(now);
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -126,11 +131,21 @@ export default function Gallery() {
           </BubbleButton>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={[styles.grid, { gap, paddingBottom: insets.bottom + 24 }]}>
-          {items.map((g, i) => {
+        <FlatList
+          key={cols}
+          data={items}
+          keyExtractor={(g) => g.id}
+          numColumns={cols}
+          initialNumToRender={cols * 3}
+          maxToRenderPerBatch={cols * 2}
+          windowSize={5}
+          removeClippedSubviews
+          columnWrapperStyle={cols > 1 ? { gap, justifyContent: 'center' } : undefined}
+          contentContainerStyle={{ gap, paddingTop: 8, paddingHorizontal: 16, paddingBottom: insets.bottom + 24 }}
+          renderItem={({ item: g, index: i }) => {
             const pic = getPicture(g.id)!;
             return (
-              <Animated.View key={g.id} entering={FadeInUp.delay(Math.min(i, 8) * 60)}>
+              <Animated.View entering={i < cols * 3 ? FadeInUp.delay(i * 60) : undefined}>
                 <Pressable
                   onPress={() => {
                     sound.play('tap');
@@ -147,8 +162,8 @@ export default function Gallery() {
                 </Pressable>
               </Animated.View>
             );
-          })}
-        </ScrollView>
+          }}
+        />
       )}
 
       <Modal visible={!!open} transparent animationType="fade" onRequestClose={() => setOpen(null)} supportedOrientations={['portrait', 'landscape']}>

@@ -8,9 +8,9 @@ bir video alın.
 **Cihaz bilgisi:** Telefon modeli: ______ · Android sürümü: ______ ·
 Ekran boyu: ______ · Tablet mi? ☐
 
-> İpucu: Testlere başlamadan önce telefonun **sessiz modunu kapatın** ve
-> medya sesini açın. Oyun, telefon sessizdeyken ses çıkarmaz (bilinçli
-> tercih).
+> İpucu: Oyunun sesleri telefonun **medya sesine** bağlıdır. Ses tuşlarıyla
+> medya sesini açın. Android'de telefon titreşim/sessiz modundayken de oyun
+> sesleri çalar.
 
 ---
 
@@ -32,6 +32,7 @@ Ekran boyu: ______ · Tablet mi? ☐
 - [ ] 2.5 Her düğmeye basınca yumuşak bir "tık" sesi ve hafif titreşim var; düğme yaylanarak küçülüp büyüyor.
 - [ ] 2.6 Sol üstteki hoparlör düğmesi tüm sesleri kapatıp açıyor; simge değişiyor.
 - [ ] 2.7 Arka planda kısa, yumuşak bir kutu müziği çalıyor ve döngü geçişinde "tık" duyulmuyor.
+- [ ] 2.7b Telefon titreşim moduna alınınca ses efektleri ve müzik devam ediyor. Kulaklık takılıyken çıkarılırsa müzik durabilir; bir sonraki dokunuşta yeniden başlıyor.
 - [ ] 2.8 Sesli rehber açılışta "Minik Renkler Dünyasına hoş geldin!" diyor. Telefonda Türkçe ses yoksa sessiz kalması normaldir; bkz. 9.5.
 - [ ] 2.9 Telefonun **Geri** tuşu/hareketi ana menüde uygulamadan çıkıyor.
 
@@ -60,6 +61,8 @@ Her kategoriden en az bir resimle deneyin.
 - [ ] 4.12 Renk paleti yatay kayıyor; seçili renk büyüyüp beyaz halkayla belirginleşiyor.
 - [ ] 4.13 **İki parmakla yakınlaştırma:** Resim büyüyor, bırakınca çizgiler bulanık değil keskin kalıyor. Yakınlaştırırken **hiçbir alan kendiliğinden boyanmıyor**.
 - [ ] 4.14 Yakınken iki parmakla kaydırma çalışıyor; tek parmak boyamaya devam ediyor. Sağ üstteki büyüteç tam görünüme dönüyor.
+- [ ] 4.14b Yakınlaştırırken parmaklardan birini önce kaldırınca resim zıplamıyor. İki parmakla aynı anda dokunmak hiçbir alanı boyamıyor.
+- [ ] 4.14c Boyarken parmak ekranın sol/sağ kenarından içeri kayarsa (Android geri hareketi) boyama ekranından çıkılmıyor.
 - [ ] 4.15 **İpucu (ampul):** Henüz boyanmamış bir alan birkaç kez sarı parlıyor.
 - [ ] 4.16 Üstteki ilerleme çubuğu boyadıkça doluyor.
 - [ ] 4.17 Az boyanmış sayfada ✓ (bitti) düğmesine basınca çubuk sallanıyor, ipucu gösteriliyor ve "Biraz daha boyayalım!" deniyor.
@@ -85,12 +88,12 @@ kendiliğinden başlamalı.
 - [ ] 6.7 Animasyonlar akıcı (takılma ya da donma yok). Kutlama sırasında telefon aşırı ısınmıyor.
 - [ ] 6.8 İlk tamamlamada "Yeni çıkartma!" kartı dönerek beliriyor; aynı resmi tekrar bitirince yeni çıkartma verilmiyor.
 - [ ] 6.9 Kutlamadaki düğmeler: ✓ boyamaya döndürüyor, → sonraki resmi açıyor, çerçeve galeriye götürüyor.
-- [ ] 6.10 Kutlama açıkken telefonun Geri tuşu uygulamayı bozmuyor (kutlama kapanıyor ya da ekran sorunsuz geri dönüyor).
+- [ ] 6.10 Kutlama açıkken telefonun Geri tuşu yalnızca kutlamayı kapatıyor; boyama ekranında kalınıyor.
 
 ## 7. Serbest çizim
 
 - [ ] 7.1 Boş sayfada fırça her yere çiziyor; kova arka planı boyuyor.
-- [ ] 7.2 ✓ ile kutlama açılıyor; çizim galeriye yeni eser olarak ekleniyor ve sayfa temizleniyor.
+- [ ] 7.2 ✓ ile kutlama açılıyor; çizim galeriye yeni eser olarak ekleniyor ve sayfa temizleniyor. Kutlamada Geri tuşuna basıp serbest çizime tekrar girince sayfa boş; galeride aynı çizim iki kez görünmüyor.
 
 ## 8. Galeri ve çıkartma kitabı
 
@@ -106,7 +109,7 @@ kendiliğinden başlamalı.
 - [ ] 9.2 Yanlış cevapta pencere sallanıyor; üç yanlışta kapanıyor. Doğru cevapta ayarlar açılıyor.
 - [ ] 9.3 Ses efektleri / Müzik / Sesli rehber / Titreşim anahtarları anında etkili oluyor ve uygulama kapatılıp açılınca hatırlanıyor.
 - [ ] 9.4 "Solak düzeni" yatay ekranda araçları sağa, paleti sola alıyor.
-- [ ] 9.5 Sesli rehber için: **Ayarlar → Sistem → Diller → Metin okuma çıkışı** (Google TTS) altında **Türkçe** ses verisi yüklü olmalı. Yüklü değilse rehberin sessiz kalması beklenen davranıştır.
+- [ ] 9.5 Sesli rehber için: **Ayarlar → Sistem → Diller → Metin okuma çıkışı** (Google TTS) altında **Türkçe** ses verisi yüklü olmalı. Yüklü değilse rehberin sessiz kalması beklenen davranıştır. Telefonun dili Türkçe olmasa da rehber Türkçe konuşmalı.
 - [ ] 9.6 "Tüm ilerlemeyi sil" onaydan sonra galeriyi, çıkartmaları ve boyamaları sıfırlıyor.
 
 ## 10. Kayıt ve dayanıklılık

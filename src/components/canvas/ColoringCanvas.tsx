@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { PixelRatio, StyleSheet, View } from 'react-native';
 import { GestureDetector, usePanGesture, usePinchGesture, useSimultaneousGestures } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -18,7 +18,7 @@ import { compilePicture, hitTest } from '../../engine/compile';
 import { LiveStroke } from '../../engine/liveStroke';
 import { uid, type Paint, type PaintAction, type PaintState } from '../../engine/paint';
 import { haptic } from '../../utils/feedback';
-import { ArtSvg } from '../art/ArtSvg';
+import { ArtSvg, getSticker, StickerArt } from '../art/ArtSvg';
 
 export type Tool = 'fill' | 'brush' | 'eraser' | 'sticker';
 
@@ -71,7 +71,7 @@ export function ColoringCanvas({
   const compiled = useMemo(() => compilePicture(picture), [picture]);
   const live = useMemo(() => new LiveStroke(), []);
   const [liveRegion, setLiveRegion] = useState<string | null>(null);
-  const [drag, setDrag] = useState<{ uid: string; x: number; y: number } | null>(null);
+  const [drag, setDrag] = useState<{ uid: string; id: string; s: number; x: number; y: number } | null>(null);
 
   // latest props for gesture callbacks (they are created once)
   const latest = useRef({ state, tool, paint, brushWidth, stickerId, size, dispatch, onEvent });
@@ -81,23 +81,23 @@ export function ColoringCanvas({
   const scale = useSharedValue(1);
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
-  const pinchStart = useSharedValue({ s: 1, tx: 0, ty: 0, fx: 0, fy: 0 });
+  const pinchStart = useSharedValue({ s: 1, k: 1, tx: 0, ty: 0, fx: 0, fy: 0, n: 2 });
   const panStart = useSharedValue({ tx: 0, ty: 0 });
   const pinching = useSharedValue(false);
   const half = useSharedValue(size / 2);
   // Re-render the SVG at a higher resolution while zoomed so lines stay crisp
   // (on iOS a scaled view would otherwise stretch a bitmap).
   const [renderScale, setRenderScale] = useState(1);
-  const rs = useSharedValue(1);
   const commitZoom = useCallback(
     (s: number) => {
-      const maxR = Math.max(1, Math.min(2.5, 1400 / size));
+      // cap by physical pixels: react-native-svg rasterises the whole view on Android
+      const maxR = Math.max(1, Math.min(2.5, 1400 / size, 2048 / (size * PixelRatio.get())));
       const r = s <= 1.05 ? 1 : Math.min(maxR, Math.round(s * 4) / 4);
-      rs.value = r;
       setRenderScale(r);
     },
-    [rs, size],
+    [size],
   );
+
   useEffect(() => {
     half.value = size / 2;
   }, [size, half]);
@@ -112,7 +112,17 @@ export function ColoringCanvas({
   }, [zoomResetKey, scale, tx, ty]);
 
   // ---------------------------------------------------------------- touch state (JS thread)
-  const touch = useRef({ active: false, cancelled: false, sx: 0, sy: 0, moved: 0, region: null as string | null, dragUid: null as string | null, lastDrag: null as { x: number; y: number } | null });
+  const touch = useRef({
+    active: false,
+    cancelled: false,
+    sx: 0,
+    sy: 0,
+    moved: 0,
+    region: null as string | null,
+    dragUid: null as string | null,
+    dragSticker: null as { id: string; s: number } | null,
+    lastDrag: null as { x: number; y: number } | null,
+  });
 
   const toCanvas = useCallback(
     (x: number, y: number): [number, number] => {
@@ -177,6 +187,7 @@ export function ColoringCanvas({
         const st = stickerAt(cx, cy);
         if (st) {
           t.dragUid = st.uid;
+          t.dragSticker = { id: st.id, s: st.s };
           t.lastDrag = { x: st.x, y: st.y };
         }
       }
@@ -200,7 +211,8 @@ export function ColoringCanvas({
         const nx = Math.max(0, Math.min(1000, cx));
         const ny = Math.max(0, Math.min(1000, cy));
         t.lastDrag = { x: nx, y: ny };
-        setDrag({ uid: t.dragUid, x: nx, y: ny });
+        const ds = t.dragSticker ?? { id: '', s: 1 };
+        setDrag({ uid: t.dragUid, id: ds.id, s: ds.s, x: nx, y: ny });
       }
     },
     [cancelStroke, live, scale, toCanvas],
@@ -347,6 +359,10 @@ export function ColoringCanvas({
     onBegin: (e) => onDown(e.x, e.y, e.numberOfPointers),
     onUpdate: (e) => onMove(e.x, e.y, e.numberOfPointers),
     onFinalize: (e) => onUp(e.canceled),
+    // a second finger means pinch/pan, never a tap or a stroke
+    onTouchesDown: (e) => {
+      if (e.numberOfTouches > 1) cancelStroke();
+    },
   });
 
   const notifyZoom = useCallback(
@@ -365,14 +381,21 @@ export function ColoringCanvas({
     onActivate: (e) => {
       'worklet';
       pinching.value = true;
-      pinchStart.value = { s: scale.value, tx: tx.value, ty: ty.value, fx: e.focalX, fy: e.focalY };
+      pinchStart.value = { s: scale.value, k: e.scale, tx: tx.value, ty: ty.value, fx: e.focalX, fy: e.focalY, n: e.numberOfPointers };
       scheduleOnRN(cancelStroke);
     },
     onUpdate: (e) => {
       'worklet';
       const st = pinchStart.value;
+      // Android keeps the pinch alive until the LAST finger lifts and moves the
+      // focal point to the remaining finger: re-anchor instead of jumping.
+      if (e.numberOfPointers !== st.n) {
+        pinchStart.value = { s: scale.value, k: e.scale, tx: tx.value, ty: ty.value, fx: e.focalX, fy: e.focalY, n: e.numberOfPointers };
+        return;
+      }
+      if (e.numberOfPointers < 2 || st.k === 0) return;
       const c = half.value;
-      const s = Math.min(MAX_ZOOM, Math.max(0.9, st.s * e.scale));
+      const s = Math.min(MAX_ZOOM, Math.max(0.9, (st.s * e.scale) / st.k));
       let nx = e.focalX - c - (s * (st.fx - c - st.tx)) / st.s;
       let ny = e.focalY - c - (s * (st.fy - c - st.ty)) / st.s;
       const lim = Math.max(0, (s - 1) * c);
@@ -419,7 +442,7 @@ export function ColoringCanvas({
   const gesture = useSimultaneousGestures(draw, pinch, pan2);
 
   const zoomStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value / rs.value }],
+    transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
   }));
 
   // ---------------------------------------------------------------- hint glow
@@ -436,38 +459,89 @@ export function ColoringCanvas({
   const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value }));
   const hintD = hintRegion ? compiled.byId[hintRegion]?.item.d : undefined;
 
+  // ---------------------------------------------------------------- overlays
+  const S = size * renderScale; // px of the rendered picture
+  const k = S / 1000;
+  // The stroke being drawn lives in a small overlay that covers only its
+  // region (snapped to physical pixels so it lines up exactly). The big picture
+  // SVG is not touched until the finger lifts.
+  const liveBox = useMemo(() => {
+    const r = liveRegion ? compiled.byId[liveRegion] : undefined;
+    if (!r) return null;
+    const pr = PixelRatio.get();
+    const snap = (u: number) => Math.round(Math.max(0, Math.min(1000, u)) * k * pr) / pr;
+    const left = snap(r.bbox.x0 - 2);
+    const top = snap(r.bbox.y0 - 2);
+    const right = snap(r.bbox.x1 + 2);
+    const bottom = snap(r.bbox.y1 + 2);
+    if (right - left < 1 || bottom - top < 1) return null;
+    return { left, top, width: right - left, height: bottom - top, vb: [left / k, top / k, (right - left) / k, (bottom - top) / k] as [number, number, number, number] };
+  }, [liveRegion, compiled, k]);
+  const dragDef = drag ? getSticker(drag.id) : undefined;
+  const dragPx = drag ? 224 * drag.s * 1.08 * k : 0;
+
   return (
     <GestureDetector gesture={gesture}>
       <View style={[styles.frame, { width: size, height: size }]} collapsable={false} testID="coloring-canvas">
-        <Animated.View
-          style={[
-            {
+        <Animated.View style={[{ width: size, height: size }, zoomStyle]}>
+          {/* The picture is rendered at renderScale x resolution and scaled back down
+              in the same React commit, so zoomed lines stay crisp without a size flash. */}
+          <View
+            style={{
               position: 'absolute',
-              left: (size - size * renderScale) / 2,
-              top: (size - size * renderScale) / 2,
-              width: size * renderScale,
-              height: size * renderScale,
-            },
-            zoomStyle,
-          ]}
-        >
+              left: (size - S) / 2,
+              top: (size - S) / 2,
+              width: S,
+              height: S,
+              transform: [{ scale: 1 / renderScale }],
+            }}
+          >
           <ArtSvg
             picture={picture}
             state={state}
-            size={size * renderScale}
+            size={S}
             prefix={prefix}
-            live={live}
-            liveRegion={liveRegion}
             activePaint={tool === 'brush' || tool === 'fill' ? paint : null}
-            drag={drag}
+            hiddenSticker={drag?.uid ?? null}
           />
+          {liveRegion && liveBox ? (
+            <View
+              pointerEvents="none"
+              style={{ position: 'absolute', left: liveBox.left, top: liveBox.top, width: liveBox.width, height: liveBox.height }}
+            >
+              <ArtSvg
+                picture={picture}
+                state={state}
+                size={liveBox.width}
+                width={liveBox.width}
+                height={liveBox.height}
+                viewBox={liveBox.vb}
+                prefix={`${prefix}L`}
+                live={live}
+                liveRegion={liveRegion}
+                liveOnly
+                activePaint={tool === 'brush' ? paint : null}
+              />
+            </View>
+          ) : null}
+          {drag && dragDef ? (
+            <View
+              pointerEvents="none"
+              style={{ position: 'absolute', left: drag.x * k - dragPx / 2, top: drag.y * k - dragPx / 2, width: dragPx, height: dragPx }}
+            >
+              <Svg width={dragPx} height={dragPx} viewBox="-12 -12 224 224">
+                <StickerArt def={dragDef} />
+              </Svg>
+            </View>
+          ) : null}
           {hintD ? (
             <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, glowStyle]}>
-              <Svg width={size * renderScale} height={size * renderScale} viewBox="0 0 1000 1000">
+              <Svg width={S} height={S} viewBox="0 0 1000 1000">
                 <Path d={hintD} fill="rgba(255,240,150,0.55)" stroke="#FFC233" strokeWidth={14} strokeLinejoin="round" />
               </Svg>
             </Animated.View>
           ) : null}
+          </View>
         </Animated.View>
       </View>
     </GestureDetector>

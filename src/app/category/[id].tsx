@@ -21,7 +21,8 @@ function PictureCard({ pic, size, color, index }: { pic: Picture; size: number; 
   const style = useAnimatedStyle(() => ({ transform: [{ scale: press.value }] }));
   const pct = prog?.pct ?? 0;
   return (
-    <Animated.View entering={FadeInUp.delay(70 * index).springify()} style={style}>
+    <Animated.View entering={FadeInUp.delay(70 * index).springify()}>
+      <Animated.View style={style}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={pic.title}
@@ -48,6 +49,7 @@ function PictureCard({ pic, size, color, index }: { pic: Picture; size: number; 
           </View>
         ) : null}
       </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }

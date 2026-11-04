@@ -4,7 +4,7 @@ import { INK, LINE } from '../../art/dsl';
 import { STICKERS } from '../../art/stickers';
 import type { DecorItem, Picture, RegionItem, StickerDef } from '../../art/types';
 import { matToString, resolvePart } from '../../engine/anim';
-import { compilePicture } from '../../engine/compile';
+import { boxesOverlap, compilePicture } from '../../engine/compile';
 import type { LiveStroke } from '../../engine/liveStroke';
 import { strokeToD, type Paint, type PaintState, type PlacedSticker, type Stroke } from '../../engine/paint';
 import { fillRef, paintKey, PaintDefs, strokeRef, type DefsSpec } from '../../engine/paints';
@@ -72,15 +72,17 @@ interface RegionProps {
   prefix: string;
   transform?: string;
   liveSource?: LiveStroke;
+  /** overlay mode: skip the fill (it is already visible underneath) */
+  noBody?: boolean;
 }
 
-const RegionView = memo(function RegionView({ item, fill, strokes, prefix, transform, liveSource }: RegionProps) {
+const RegionView = memo(function RegionView({ item, fill, strokes, prefix, transform, liveSource, noBody }: RegionProps) {
   const rule = item.evenOdd ? 'evenodd' : 'nonzero';
   const clipped = (strokes && strokes.length > 0) || !!liveSource;
   const clipId = `${prefix}c-${item.id}`;
   return (
     <G transform={transform}>
-      <Path d={item.d} fill={fill} fillRule={rule} />
+      {!noBody && <Path d={item.d} fill={fill} fillRule={rule} />}
       {clipped && (
         <>
           <Defs>
@@ -88,7 +90,8 @@ const RegionView = memo(function RegionView({ item, fill, strokes, prefix, trans
               <Path d={item.d} clipRule={rule} />
             </ClipPath>
           </Defs>
-          <G clipPath={`url(#${clipId})`}>
+          {/* Android reads the clip rule from the referencing element, not the clip child */}
+          <G clipPath={`url(#${clipId})`} clipRule={rule}>
             {strokes?.map((s) => <StrokeView key={s.id} stroke={s} prefix={prefix} eraseFill={fill} />)}
             {liveSource && <LiveStrokePath source={liveSource} prefix={prefix} eraseFill={fill} />}
           </G>
@@ -220,7 +223,17 @@ export interface ArtSvgProps {
   viewBox?: [number, number, number, number];
   hide?: string[];
   showStickers?: boolean;
-  drag?: { uid: string; x: number; y: number } | null;
+  /** sticker being dragged: drawn by a separate light overlay, hidden here */
+  hiddenSticker?: string | null;
+  /**
+   * Overlay mode for the stroke being drawn: render only the live region's
+   * new stroke plus everything that sits above it inside `viewBox`. Keeps
+   * the big picture SVG from being re-rasterised on every brush frame.
+   */
+  liveOnly?: boolean;
+  /** explicit pixel size for non-square overlays */
+  width?: number;
+  height?: number;
 }
 
 function buildDefs(picture: Picture, state: PaintState, activePaint?: Paint | null): DefsSpec {
@@ -265,7 +278,10 @@ function ArtSvgImpl({
   viewBox,
   hide,
   showStickers = true,
-  drag,
+  hiddenSticker,
+  liveOnly,
+  width,
+  height,
 }: ArtSvgProps) {
   const defs = useMemo(
     () => (useHints ? { patterns: [], rainbowRegions: [], rainbowStroke: false } : buildDefs(picture, state, activePaint)),
@@ -278,24 +294,31 @@ function ArtSvgImpl({
     time !== undefined && part && parts[part] ? matToString(resolvePart(parts, part, time)) : undefined;
 
   const vb = viewBox ?? [0, 0, 1000, 1000];
+  const cp = compilePicture(picture);
+  const liveZ = liveOnly && liveRegion ? cp.byId[liveRegion]?.z ?? -1 : -1;
+  const view = { x0: vb[0], y0: vb[1], x1: vb[0] + vb[2], y1: vb[1] + vb[3] };
+  if (liveOnly && liveZ < 0) return null;
   return (
-    <Svg width={size} height={size} viewBox={vb.join(' ')}>
+    <Svg width={width ?? size} height={height ?? size} viewBox={vb.join(' ')}>
       <PaintDefs spec={defs} prefix={prefix} />
       {picture.items.map((item, i) => {
+        if (liveOnly && (i < liveZ || (i > liveZ && !boxesOverlap(cp.itemBoxes[i], view)))) return null;
         if (item.kind === 'region') {
           if (hidden.has(item.id)) return null;
           const fill = useHints
             ? item.hint ?? PAPER
             : fillRef(state.fills[item.id], prefix, item.id) ?? PAPER;
+          const isLive = !!live && liveRegion === item.id;
           return (
             <RegionView
               key={item.id}
               item={item}
               fill={fill}
-              strokes={useHints ? undefined : state.strokes[item.id]}
+              strokes={useHints || (liveOnly && isLive) ? undefined : state.strokes[item.id]}
               prefix={prefix}
               transform={tf(item.part)}
-              liveSource={live && liveRegion === item.id ? live : undefined}
+              liveSource={isLive ? live : undefined}
+              noBody={liveOnly && isLive}
             />
           );
         }
@@ -304,16 +327,10 @@ function ArtSvgImpl({
       {showStickers &&
         !useHints &&
         state.stickers.map((st) => {
-          const dragging = drag?.uid === st.uid;
-          return (
-            <PlacedStickerView
-              key={st.uid}
-              sticker={st}
-              x={dragging ? drag!.x : st.x}
-              y={dragging ? drag!.y : st.y}
-              selected={dragging}
-            />
-          );
+          if (st.uid === hiddenSticker) return null;
+          if (liveOnly && !boxesOverlap({ x0: st.x - 110 * st.s, y0: st.y - 110 * st.s, x1: st.x + 110 * st.s, y1: st.y + 110 * st.s }, view))
+            return null;
+          return <PlacedStickerView key={st.uid} sticker={st} x={st.x} y={st.y} selected={false} />;
         })}
     </Svg>
   );

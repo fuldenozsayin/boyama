@@ -1,3 +1,4 @@
+import { useIsFocused } from 'expo-router';
 import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
@@ -30,6 +31,8 @@ interface Props {
   style?: StyleProp<ViewStyle>;
   silent?: boolean;
   testID?: string;
+  /** extra touch area around the button (default 8) */
+  hitSlop?: number;
 }
 
 /** Big, round, squishy button. Every tap bounces and gives soft feedback. */
@@ -48,18 +51,20 @@ export function BubbleButton({
   style,
   silent,
   testID,
+  hitSlop = 8,
 }: Props) {
   const scale = useSharedValue(1);
   const pulse = useSharedValue(1);
+  const focused = useIsFocused();
 
   useEffect(() => {
-    if (glow && !disabled) {
+    if (glow && !disabled && focused) {
       pulse.value = withRepeat(withSequence(withTiming(1.09, { duration: 650 }), withTiming(1, { duration: 650 })), -1);
     } else {
       cancelAnimation(pulse);
       pulse.value = withTiming(1, { duration: 200 });
     }
-  }, [glow, disabled, pulse]);
+  }, [glow, disabled, pulse, focused]);
 
   const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value * pulse.value }] }));
 
@@ -73,7 +78,7 @@ export function BubbleButton({
         accessibilityLabel={a11y}
         accessibilityState={{ disabled: !!disabled, selected: !!selected }}
         disabled={disabled}
-        hitSlop={8}
+        hitSlop={hitSlop}
         onPressIn={() => {
           scale.value = withSpring(0.86, { damping: 12, stiffness: 420 });
         }}

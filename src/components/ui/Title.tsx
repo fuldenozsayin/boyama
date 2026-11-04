@@ -1,6 +1,8 @@
+import { useIsFocused } from 'expo-router';
 import React, { memo, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
@@ -15,7 +17,12 @@ const LETTER_COLORS = ['#FF7EB0', '#A98BEA', '#3FBF8A', '#F2B92B', '#5DA8F0', '#
 
 const Letter = memo(function Letter({ ch, i, size }: { ch: string; i: number; size: number }) {
   const t = useSharedValue(0);
+  const focused = useIsFocused();
   useEffect(() => {
+    if (!focused) {
+      cancelAnimation(t);
+      return;
+    }
     t.value = withDelay(
       i * 90,
       withRepeat(
@@ -26,7 +33,7 @@ const Letter = memo(function Letter({ ch, i, size }: { ch: string; i: number; si
         -1,
       ),
     );
-  }, [i, t]);
+  }, [i, t, focused]);
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: -size * 0.06 * t.value }] }));
   if (ch === ' ') return <View style={{ width: size * 0.3 }} />;
   return (
