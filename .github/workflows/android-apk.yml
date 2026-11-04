@@ -1,0 +1,106 @@
+# Builds an installable Android test APK on GitHub's servers and publishes it
+# as the "test-apk" pre-release, so it can be downloaded straight to a phone:
+#   https://github.com/<owner>/<repo>/releases/download/test-apk/MinikRenklerDunyasi.apk
+#
+# Runs automatically when app code changes on the default branch, or manually
+# from the Actions tab ("Run workflow").
+name: Android test APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      abis:
+        description: "CPU mimarileri (çoğu telefon için arm64-v8a yeterli)"
+        required: false
+        default: "arm64-v8a,armeabi-v7a"
+  push:
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "app.json"
+      - "eas.json"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/android-apk.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      ABIS: ${{ github.event.inputs.abis || 'arm64-v8a,armeabi-v7a' }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck and unit tests
+        run: |
+          npm run typecheck
+          npx jest --ci
+
+      - name: Generate the native Android project (Expo prebuild)
+        run: npx expo prebuild --platform android --no-install --clean
+
+      - name: Install Android SDK packages
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "platforms;android-37.0" "build-tools;37.0.0" "ndk;27.1.12297006" "cmake;3.22.1" > /dev/null
+
+      - name: Build release APK
+        working-directory: android
+        run: >
+          ./gradlew assembleRelease
+          -PreactNativeArchitectures=$ABIS
+          --no-daemon --console=plain
+          -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g"
+
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/release/app-release.apk out/MinikRenklerDunyasi.apk
+          ls -lh out
+          sha256sum out/MinikRenklerDunyasi.apk | tee out/SHA256.txt
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: MinikRenklerDunyasi-apk
+          path: out/
+          retention-days: 30
+
+      - name: Publish the "test-apk" pre-release (default branch only)
+        if: github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete test-apk --yes --cleanup-tag || true
+          gh release create test-apk out/MinikRenklerDunyasi.apk out/SHA256.txt \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Minik Renkler Dünyası – Test APK" \
+            --notes "Telefonda test için otomatik derlenen APK (commit ${GITHUB_SHA::7}, mimariler: $ABIS).
+
+          **Kurulum:** Bu sayfadaki MinikRenklerDunyasi.apk dosyasını telefonun tarayıcısıyla indirin, açın ve tarayıcıya 'bilinmeyen uygulamaları yükleme' izni verin. Ayrıntılar: docs/ANDROID_APK.md
+
+          Bu yapı test anahtarıyla imzalıdır; mağazaya yüklemek için EAS Build ile üretim derlemesi kullanın."
