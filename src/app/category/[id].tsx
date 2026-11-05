@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback } from 'react';
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCategory } from '../../art';
@@ -68,8 +68,10 @@ export default function CategoryScreen() {
   const usable = width - insets.left - insets.right - 24;
   const cols = width > height ? (width > 1100 ? 5 : 3) : width > 700 ? 3 : 2;
   const gap = 18;
-  // card = art + 2*10 padding + 2*4 border
-  const size = Math.floor(Math.min(320, (usable - gap * (cols - 1)) / cols - 28));
+  // card = art + 2*10 padding + 2*4 border (+ 2*3 paper border, counted on iOS
+  // so the intended columns fit: 2 on phones, 3 on iPad portrait)
+  const frame = Platform.OS === 'ios' ? 34 : 28;
+  const size = Math.floor(Math.min(320, (usable - gap * (cols - 1)) / cols - frame));
   return (
     <View style={styles.root}>
       <PastelBackground top={lighten(cat.color, 0.3)} bottom={cat.color} />

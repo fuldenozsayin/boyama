@@ -27,7 +27,6 @@ name: Minik Renkler Dünyası – smoke
       id: picture-unicorn-rainbow-hill
     direction: DOWN
     timeout: 20000
-    centerElement: true
 - takeScreenshot: 03-category
 - tapOn:
     id: picture-unicorn-rainbow-hill
@@ -110,7 +109,6 @@ name: Minik Renkler Dünyası – smoke
       id: picture-unicorn-rainbow-hill
     direction: DOWN
     timeout: 20000
-    centerElement: true
 - takeScreenshot: 11-category-progress
 
 # relaunch: progress must be restored
@@ -131,7 +129,6 @@ name: Minik Renkler Dünyası – smoke
       id: picture-unicorn-rainbow-hill
     direction: DOWN
     timeout: 20000
-    centerElement: true
 - tapOn:
     id: picture-unicorn-rainbow-hill
     waitToSettleTimeoutMs: 800
