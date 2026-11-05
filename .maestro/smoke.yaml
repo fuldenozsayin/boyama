@@ -21,10 +21,13 @@ name: Minik Renkler Dünyası – smoke
 - tapOn:
     id: category-unicorn
     waitToSettleTimeoutMs: 800
-- extendedWaitUntil:
-    visible:
+# the 5th picture is below the fold on phones
+- scrollUntilVisible:
+    element:
       id: picture-unicorn-rainbow-hill
+    direction: DOWN
     timeout: 20000
+    centerElement: true
 - takeScreenshot: 03-category
 - tapOn:
     id: picture-unicorn-rainbow-hill
@@ -101,10 +104,13 @@ name: Minik Renkler Dünyası – smoke
 - tapOn:
     id: color-back
     waitToSettleTimeoutMs: 800
-- extendedWaitUntil:
-    visible:
+# the 5th picture is below the fold on phones
+- scrollUntilVisible:
+    element:
       id: picture-unicorn-rainbow-hill
+    direction: DOWN
     timeout: 20000
+    centerElement: true
 - takeScreenshot: 11-category-progress
 
 # relaunch: progress must be restored
@@ -120,6 +126,12 @@ name: Minik Renkler Dünyası – smoke
 - tapOn:
     id: category-unicorn
     waitToSettleTimeoutMs: 800
+- scrollUntilVisible:
+    element:
+      id: picture-unicorn-rainbow-hill
+    direction: DOWN
+    timeout: 20000
+    centerElement: true
 - tapOn:
     id: picture-unicorn-rainbow-hill
     waitToSettleTimeoutMs: 800
