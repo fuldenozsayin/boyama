@@ -1,0 +1,133 @@
+# Signed iOS build on Expo (EAS Build, distribution "store") + upload to
+# TestFlight (EAS Submit). Started manually: Actions → "iOS TestFlight" →
+# Run workflow.
+#
+# Account access comes ONLY from GitHub repository secrets that the account
+# owner adds (Settings → Secrets and variables → Actions). Values are never
+# printed and never committed. See docs/IOS_TESTFLIGHT.md.
+#
+#   EXPO_TOKEN          Expo personal access token
+#   ASC_API_KEY_P8      contents of the App Store Connect API key (AuthKey_XXXX.p8)
+#   ASC_API_KEY_ID      key ID            (e.g. 2X9R4HXF34)
+#   ASC_API_ISSUER_ID   issuer ID         (UUID shown above the keys list)
+#   APPLE_TEAM_ID       Apple Developer team ID (10 characters)
+#   APPLE_TEAM_TYPE     INDIVIDUAL or COMPANY_OR_ORGANIZATION
+#   ASC_APP_ID          "Apple ID" number of the Minik Renkler Dünyası app record
+#
+# Only the bundle ID com.minikrenkler.dunyasi is used. EAS creates/uses a
+# provisioning profile for that bundle ID; it never revokes or edits other
+# apps' (e.g. LumiFlow's) certificates or profiles in non-interactive mode.
+name: iOS TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: "Derlemeyi TestFlight'a yükle"
+        type: boolean
+        default: true
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+      ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID || vars.ASC_API_KEY_ID }}
+      ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID || vars.ASC_API_ISSUER_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || vars.APPLE_TEAM_ID }}
+      APPLE_TEAM_TYPE: ${{ secrets.APPLE_TEAM_TYPE || vars.APPLE_TEAM_TYPE }}
+      ASC_APP_ID: ${{ secrets.ASC_APP_ID || vars.ASC_APP_ID }}
+    steps:
+      - name: Check that the account secrets exist (values are never shown)
+        run: |
+          missing=""
+          for v in EXPO_TOKEN ASC_API_KEY_P8 ASC_API_KEY_ID ASC_API_ISSUER_ID APPLE_TEAM_ID APPLE_TEAM_TYPE ASC_APP_ID; do
+            if [ -z "${!v}" ]; then missing="$missing $v"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Eksik GitHub secret:$missing — kurulum adımları: docs/IOS_TESTFLIGHT.md"
+            exit 1
+          fi
+          case "$APPLE_TEAM_TYPE" in INDIVIDUAL|COMPANY_OR_ORGANIZATION|IN_HOUSE) ;; *)
+            echo "::error::APPLE_TEAM_TYPE INDIVIDUAL, COMPANY_OR_ORGANIZATION ya da IN_HOUSE olmalı"; exit 1;;
+          esac
+
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint, typecheck and unit tests
+        run: |
+          npx expo lint
+          npm run typecheck
+          npx jest --ci
+
+      - name: Write the App Store Connect API key to a private temp file
+        run: |
+          KEY="$RUNNER_TEMP/asc_api_key.p8"
+          if printf '%s' "$ASC_API_KEY_P8" | grep -q "BEGIN PRIVATE KEY"; then
+            printf '%s\n' "$ASC_API_KEY_P8" > "$KEY"
+          else
+            printf '%s' "$ASC_API_KEY_P8" | base64 -d > "$KEY"
+          fi
+          chmod 600 "$KEY"
+          echo "ASC_KEY_PATH=$KEY" >> "$GITHUB_ENV"
+
+      - name: Link the Expo project (creates it on the first run)
+        run: npx eas-cli@latest init --non-interactive --force
+
+      - name: Submit settings for this run (CI only, not committed)
+        run: |
+          jq --arg app "$ASC_APP_ID" --arg team "$APPLE_TEAM_ID" --arg key "$ASC_KEY_PATH" \
+             --arg kid "$ASC_API_KEY_ID" --arg iss "$ASC_API_ISSUER_ID" \
+             '.submit.production.ios = {ascAppId: $app, appleTeamId: $team, ascApiKeyPath: $key, ascApiKeyId: $kid, ascApiKeyIssuerId: $iss}' \
+             eas.json > eas.tmp.json && mv eas.tmp.json eas.json
+
+      - name: Build the signed iOS app on Expo (EAS Build)
+        env:
+          EXPO_ASC_API_KEY_PATH: ${{ env.ASC_KEY_PATH }}
+          EXPO_ASC_KEY_ID: ${{ env.ASC_API_KEY_ID }}
+          EXPO_ASC_ISSUER_ID: ${{ env.ASC_API_ISSUER_ID }}
+          EXPO_APPLE_TEAM_ID: ${{ env.APPLE_TEAM_ID }}
+          EXPO_APPLE_TEAM_TYPE: ${{ env.APPLE_TEAM_TYPE }}
+        run: |
+          npx eas-cli@latest build --platform ios --profile production --non-interactive --wait --json > build.json
+          jq '.[0] | {id, status, appVersion, appBuildVersion}' build.json
+          BUILD_ID=$(jq -r '.[0].id' build.json)
+          STATUS=$(jq -r '.[0].status' build.json)
+          echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
+          {
+            echo "### iOS build"
+            echo "- Durum: $STATUS"
+            echo "- Sürüm: $(jq -r '.[0].appVersion' build.json) (build $(jq -r '.[0].appBuildVersion' build.json))"
+            echo "- Expo build kimliği: $BUILD_ID (expo.dev → proje → Builds)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$STATUS" != "FINISHED" ]; then echo "::error::EAS iOS derlemesi bitmedi: $STATUS"; exit 1; fi
+
+      - name: Upload to TestFlight (EAS Submit)
+        if: inputs.submit
+        run: |
+          npx eas-cli@latest submit --platform ios --profile production --id "$BUILD_ID" \
+            --non-interactive --wait --auto-testflight-setup \
+            --what-to-test "Tüm boyama özelliklerini deneyin: dokun-doldur, fırça, silgi, sihirli boyalar, çıkartmalar, yakınlaştırma, kutlama, galeri, otomatik kayıt. Test listesi: docs/TEST_LISTESI_IOS.md"
+          {
+            echo "### TestFlight"
+            echo "- Derleme App Store Connect'e yüklendi. Apple işlemesi genellikle 10–30 dakika sürer; bitince e-posta gelir."
+            echo "- App Store Connect → Uygulamalar → Minik Renkler Dünyası → TestFlight"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the API key file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/asc_api_key.p8"
