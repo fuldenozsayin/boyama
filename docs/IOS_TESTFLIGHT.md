@@ -16,7 +16,7 @@ yüklemenin adımlarını anlatır.
 | Aşama | Kim | Durum |
 | --- | --- | --- |
 | iOS uyumluluk denetimi ve düzeltmeler | Claude | ✅ |
-| iOS Simülatör'de gerçek derleme + otomatik arayüz testi | Claude | GitHub Actions → **iOS simulator build & UI test** |
+| iOS Simülatör'de gerçek derleme (Xcode, Release) + otomatik arayüz testi | Claude | ✅ iPhone 17 Pro ve iPad Pro 13" (iOS 26.5): ana senaryo, yatay ekran, galeri silme + ebeveyn kapısı geçti (GitHub Actions → **iOS simulator build & UI test**) |
 | EAS/TestFlight yapılandırması (`eas.json`, `.github/workflows/ios-testflight.yml`, `scripts/ci/eas-ios-credentials.py`) | Claude | ✅ |
 | Bundle ID + App Store Connect kaydı + API anahtarı + Expo hesabı | **Siz** (tarayıcıda) | ⏳ aşağıdaki 1–6. adımlar |
 | İmzalı iOS derlemesi + TestFlight'a yükleme | Claude (siz "hazır" deyince) | ⏳ hesap erişimini bekliyor |
