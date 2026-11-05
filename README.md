@@ -46,6 +46,16 @@ npx eas-cli@latest build --profile production --platform all
 - Kurulum, EAS Build adımları ve yerel derleme: [`docs/ANDROID_APK.md`](docs/ANDROID_APK.md)
 - Gerçek cihaz test listesi: [`docs/TEST_LISTESI.md`](docs/TEST_LISTESI.md)
 
+## iPhone / iPad'de test (TestFlight)
+
+- Kurulum adımları (Apple Developer, App Store Connect, GitHub Secrets) ve
+  TestFlight ile iPhone'a yükleme: [`docs/IOS_TESTFLIGHT.md`](docs/IOS_TESTFLIGHT.md)
+- iPhone/iPad test listesi: [`docs/TEST_LISTESI_IOS.md`](docs/TEST_LISTESI_IOS.md)
+- Her kod değişikliğinde GitHub Actions uygulamayı Xcode ile iOS Simülatör
+  için derler ve iPhone ile iPad simülatörlerinde Maestro ile dokunarak test
+  eder (`.github/workflows/ios-simulator.yml`, `.maestro/`). İmzalı TestFlight
+  derlemesi elle başlatılır (`.github/workflows/ios-testflight.yml`).
+
 ## Doğrulama komutları
 
 ```bash
@@ -158,9 +168,13 @@ docs/ART_GUIDE.md         Yeni resim çizme rehberi
 ## Bilinen kısıtlar ve alternatifler
 
 - **Gerçek cihaz testi:** bu sürüm web üzerinde gerçek işaretçi olaylarıyla,
-  tür kontrolü ve birim testleriyle doğrulandı. Dokunmatik jestler, ses ve
-  titreşim için Expo Go ile fiziksel iOS ve Android cihazlarda kısa bir
-  test turu önerilir.
+  tür kontrolü ve birim testleriyle, Android'de release APK ile, iOS'ta
+  Xcode derlemesi ve iPhone/iPad simülatörlerinde otomatik dokunma testleriyle
+  doğrulandı. Ses, titreşim ve dokunma hissi için fiziksel cihazda
+  (TestFlight / APK) test listesiyle bir tur önerilir.
+- **iOS sesleri:** oyun sesleri ve sesli rehber, iPhone'un zil/sessiz anahtarı
+  sessizdeyken de çalar (okuma bilmeyen çocuk için rehber önemlidir); ses
+  düğmeleri ve oyundaki ses ayarları her zaman geçerlidir.
 - **Sesler** kodla sentezlendi (lisans sorunu yok). Daha zengin bir his için
   bir ses tasarımcısının kayıtları `assets/sounds/` içindeki aynı adlı
   dosyaların yerine konabilir.
