@@ -342,6 +342,12 @@ export default function ColorScreen() {
   // portrait tool row: 4 tools + hint + trash (or 4 tools + 3 size dots) must fit the width
   const rowAvail = width - insets.left - insets.right - 16 - 20;
   const tb = landscape ? btn : Math.max(40, Math.min(54, Math.floor((rowAvail - 6 * 6) / 6.4)));
+  // size dots: 3 × (dot + 2) + selection ring 6 + gaps 4, next to 4 tools, 5 row gaps of 6 and 20 padding.
+  // iOS: shrink the dots so the row fits the panel exactly (narrow iPhones, iPad Slide Over)
+  const sizeDot =
+    Platform.OS === 'ios' && !landscape
+      ? Math.max(24, Math.min(Math.round(tb * 0.78), Math.floor((rowAvail - 46 - 4 * tb) / 3)))
+      : Math.round(tb * 0.78);
   const sideTools = btn + 34;
   // palette card must fit undo + redo + done (and hint + trash / size dots) on one row
   const sidePalette = Math.min(290, Math.max(3 * btn + 6 + 16 + 12 + 8, width * 0.22));
@@ -466,7 +472,7 @@ export default function ColorScreen() {
 
   const sizes =
     tool === 'brush' || tool === 'eraser' ? (
-      <SizePicker value={sizeIdx} onChange={setSizeIdx} color={tool === 'eraser' ? '#fff' : color} size={Math.round(tb * 0.78)} />
+      <SizePicker value={sizeIdx} onChange={setSizeIdx} color={tool === 'eraser' ? '#fff' : color} size={sizeDot} />
     ) : null;
 
   const palette =
@@ -480,8 +486,8 @@ export default function ColorScreen() {
       </>
     );
 
-  const canvas = (
-    <View style={[styles.canvasWrap, softShadow(10), { width: canvasSize + 12, height: canvasSize + 12 }]}>
+  const canvasFrame = (
+    <View style={[styles.canvasWrap, Platform.OS === 'ios' ? null : softShadow(10), { width: canvasSize + 12, height: canvasSize + 12 }]}>
       {ready ? (
         <Animated.View
           entering={FadeIn.duration(250)}
@@ -552,6 +558,9 @@ export default function ColorScreen() {
       )}
     </View>
   );
+  // iOS: a view that clips its content can't draw its own shadow, so the shadow lives on a parent
+  const canvas =
+    Platform.OS === 'ios' ? <View style={[styles.canvasShadow, softShadow(10)]}>{canvasFrame}</View> : canvasFrame;
 
   const left = settings.leftHanded;
 
@@ -651,6 +660,10 @@ export default function ColorScreen() {
   );
 }
 
+// iOS can only build a cheap shadow path for an opaque background; a translucent
+// panel full of animated buttons would render its shadow offscreen every frame
+const PANEL_BG = Platform.OS === 'ios' ? '#FFFFFF' : 'rgba(255,255,255,0.92)';
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
@@ -668,9 +681,10 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     overflow: 'hidden',
   },
+  canvasShadow: { backgroundColor: '#fff', borderRadius: 26 },
   zoomBtn: { position: 'absolute', right: 12, top: 12 },
   bottomPanel: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: PANEL_BG,
     borderRadius: 30,
     marginHorizontal: 8,
     paddingVertical: 8,
@@ -681,7 +695,7 @@ const styles = StyleSheet.create({
   sideCol: { alignItems: 'center', justifyContent: 'space-between' },
   colGroup: { gap: 10, alignItems: 'center' },
   paletteCol: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: PANEL_BG,
     borderRadius: 30,
     paddingVertical: 10,
     paddingHorizontal: 6,

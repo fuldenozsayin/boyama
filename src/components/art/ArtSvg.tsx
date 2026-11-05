@@ -1,4 +1,5 @@
 import React, { memo, useMemo, useSyncExternalStore } from 'react';
+import { Platform } from 'react-native';
 import Svg, { ClipPath, Defs, G, Path } from 'react-native-svg';
 import { INK, LINE } from '../../art/dsl';
 import { STICKERS } from '../../art/stickers';
@@ -8,6 +9,8 @@ import { boxesOverlap, compilePicture } from '../../engine/compile';
 import type { LiveStroke } from '../../engine/liveStroke';
 import { strokeToD, type Paint, type PaintState, type PlacedSticker, type Stroke } from '../../engine/paint';
 import { fillRef, paintKey, PaintDefs, strokeRef, type DefsSpec } from '../../engine/paints';
+
+const IDENTITY = 'matrix(1 0 0 1 0 0)';
 
 const PAPER = '#FFFFFF';
 
@@ -300,8 +303,13 @@ function ArtSvgImpl({
   );
   const hidden = useMemo(() => new Set(hide ?? []), [hide]);
   const parts = picture.parts ?? {};
-  const tf = (part?: string) =>
-    time !== undefined && part && parts[part] ? matToString(resolvePart(parts, part, time)) : undefined;
+  const tf = (part?: string) => {
+    if (!part || !parts[part]) return undefined;
+    if (time !== undefined) return matToString(resolvePart(parts, part, time));
+    // iOS keeps the last native matrix when the prop disappears, which would
+    // freeze an animated part mid-pose once the clock stops: reset explicitly
+    return Platform.OS === 'ios' ? IDENTITY : undefined;
+  };
 
   const vb = viewBox ?? [0, 0, 1000, 1000];
   const cp = compilePicture(picture);

@@ -13,7 +13,8 @@
       "requireFullScreen": false,
       "bundleIdentifier": "com.minikrenkler.dunyasi",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIStatusBarHidden": true
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,

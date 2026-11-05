@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { PixelRatio, StyleSheet, View } from 'react-native';
+import { PixelRatio, Platform, StyleSheet, View } from 'react-native';
 import { GestureDetector, usePanGesture, usePinchGesture, useSimultaneousGestures } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -92,8 +92,11 @@ export function ColoringCanvas({
   const [renderScale, setRenderScale] = useState(1);
   const commitZoom = useCallback(
     (s: number) => {
-      // cap by physical pixels: react-native-svg rasterises the whole view on Android
-      const maxR = Math.max(1, Math.min(2.5, 1400 / size, 2048 / (size * PixelRatio.get())));
+      // cap by physical pixels: react-native-svg rasterises the whole view on
+      // Android; iOS draws into a layer backing store, which can be larger
+      const ios = Platform.OS === 'ios';
+      let maxR = Math.max(1, Math.min(2.5, (ios ? 2000 : 1400) / size, (ios ? 2560 : 2048) / (size * PixelRatio.get())));
+      if (ios && maxR < 1.2) maxR = 1; // a re-render that barely sharpens isn't worth it
       const r = s <= 1.05 ? 1 : Math.min(maxR, Math.round(s * 4) / 4);
       setRenderScale(r);
     },
@@ -102,7 +105,13 @@ export function ColoringCanvas({
 
   useEffect(() => {
     half.set(size / 2);
-  }, [size, half]);
+    if (Platform.OS === 'ios') {
+      // rotation / iPad window resize while zoomed: keep the picture inside the frame
+      const lim = Math.max(0, (scale.value - 1) * (size / 2));
+      tx.set(Math.max(-lim, Math.min(lim, tx.value)));
+      ty.set(Math.max(-lim, Math.min(lim, ty.value)));
+    }
+  }, [size, half, scale, tx, ty]);
 
   // zoom reset requested by the parent: drop the high-res render right away
   // (state adjusted during render, React's recommended pattern) and animate back
@@ -430,9 +439,12 @@ export function ColoringCanvas({
 
   const pan2 = usePanGesture({
     minPointers: 2,
-    onBegin: () => {
+    onBegin: (e) => {
       'worklet';
-      scheduleOnRN(cancelStroke);
+      // iOS reports BEGAN for every single-finger touch too (minPointers is
+      // only checked on activation): cancelling then would drop the previous
+      // deferred tap. Android only begins with 2+ pointers.
+      if (e.numberOfPointers > 1) scheduleOnRN(cancelStroke);
     },
     onActivate: () => {
       'worklet';

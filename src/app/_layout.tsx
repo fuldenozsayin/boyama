@@ -8,7 +8,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { sound } from '../audio/sound';
@@ -78,6 +78,10 @@ export default function RootLayout() {
             headerShown: false,
             animation: 'fade',
             contentStyle: { backgroundColor: C.bgTop },
+            // iOS: react-native-screens owns the status bar (expo-status-bar's
+            // `hidden` only reaches the root view controller), and only an
+            // edge swipe should go back, not a drag anywhere on a card grid
+            ...(Platform.OS === 'ios' ? { statusBarHidden: true, fullScreenGestureEnabled: false } : null),
           }}
         >
           <Stack.Screen name="color/[id]" options={{ gestureEnabled: false, animation: 'fade_from_bottom' }} />

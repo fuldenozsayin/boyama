@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { FlatList, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeInUp, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getPicture } from '../art';
@@ -57,6 +57,9 @@ function Viewer({ id, onClose, onDelete }: { id: string; onClose: () => void; on
   // landscape phones: picture beside the buttons, so both fit the short height
   const landscape = width > height;
   const size = landscape ? Math.min(height - 96, width * 0.6, 640) : Math.min(width * 0.86, height * 0.66, 640);
+  // the button row (3 big + 1 small + gaps) must fit very narrow windows too
+  // (iPad Slide Over is 320 pt); unchanged on phones
+  const b = landscape ? 72 : Math.max(52, Math.min(72, Math.floor((width - 32 - 48 - 56) / 3)));
   return (
     <View style={[styles.viewerBackdrop, landscape && { flexDirection: 'row', gap: 28 }]}>
       <Animated.View entering={ZoomIn.springify()} style={[styles.bigFrame, softShadow(14)]}>
@@ -65,12 +68,12 @@ function Viewer({ id, onClose, onDelete }: { id: string; onClose: () => void; on
         </View>
       </Animated.View>
       <View style={[styles.viewerBtns, landscape && { flexDirection: 'column', marginTop: 0 }]}>
-        <BubbleButton a11y="Kapat" size={72} color={C.pinkMid} onPress={onClose} testID="viewer-close">
-          <Icon name="close" size={44} />
+        <BubbleButton a11y="Kapat" size={b} color={C.pinkMid} onPress={onClose} testID="viewer-close">
+          <Icon name="close" size={Math.round(b * 0.61)} />
         </BubbleButton>
         <BubbleButton
           a11y="Canlandır"
-          size={72}
+          size={b}
           color={C.yellowMid}
           onPress={() => {
             sound.play('magic');
@@ -79,11 +82,11 @@ function Viewer({ id, onClose, onDelete }: { id: string; onClose: () => void; on
           }}
           testID="viewer-play"
         >
-          <Icon name="play" size={44} color="#fff" />
+          <Icon name="play" size={Math.round(b * 0.61)} color="#fff" />
         </BubbleButton>
         <BubbleButton
           a11y="Boyamaya devam et"
-          size={72}
+          size={b}
           color={C.mintMid}
           onPress={() => {
             onClose();
@@ -91,7 +94,7 @@ function Viewer({ id, onClose, onDelete }: { id: string; onClose: () => void; on
           }}
           testID="viewer-edit"
         >
-          <Icon name="brush" size={46} color={C.pinkMid} accent={C.yellowMid} />
+          <Icon name="brush" size={Math.round(b * 0.64)} color={C.pinkMid} accent={C.yellowMid} />
         </BubbleButton>
         <BubbleButton a11y="Sil (ebeveyn)" size={56} color="#EEE8F5" onPress={onDelete} testID="viewer-delete">
           <Icon name="trash" size={34} color={C.pinkMid} />
@@ -109,6 +112,9 @@ export default function Gallery() {
   const [open, setOpen] = useState<string | null>(null);
   const [gate, setGate] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  // iOS can't present a modal while another one is still animating away, so
+  // the next step waits for onDismiss there (Android switches at once)
+  const after = useRef<'confirm' | 'close' | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -179,6 +185,12 @@ export default function Gallery() {
           onClose={() => setGate(false)}
           onPass={() => {
             setGate(false);
+            if (Platform.OS === 'ios') after.current = 'confirm';
+            else setConfirm(true);
+          }}
+          onDismiss={() => {
+            if (after.current !== 'confirm') return;
+            after.current = null;
             setConfirm(true);
           }}
         />
@@ -193,6 +205,12 @@ export default function Gallery() {
               if (open.startsWith('free-')) deleteArt(open);
             }
             setConfirm(false);
+            if (Platform.OS === 'ios') after.current = 'close';
+            else setOpen(null);
+          }}
+          onDismiss={() => {
+            if (after.current !== 'close') return;
+            after.current = null;
             setOpen(null);
           }}
         />

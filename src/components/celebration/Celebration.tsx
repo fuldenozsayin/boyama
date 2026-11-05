@@ -16,7 +16,7 @@ import type { Picture } from '../../art/types';
 import { sound } from '../../audio/sound';
 import { voice } from '../../audio/voice';
 import type { PaintState } from '../../engine/paint';
-import { C, FONT, softShadow } from '../../theme';
+import { C, FONT, softShadow, TEXT_CAP } from '../../theme';
 import { haptic } from '../../utils/feedback';
 import { ArtSvg, getSticker, StickerArt } from '../art/ArtSvg';
 import { BubbleButton } from '../ui/BubbleButton';
@@ -150,7 +150,7 @@ export function Celebration({ picture, state, earnedSticker, onContinue, onNext,
                   <StickerArt def={sticker} />
                 </Svg>
               </Animated.View>
-              <Text style={styles.rewardText}>Yeni çıkartma!</Text>
+              <Text style={styles.rewardText} maxFontSizeMultiplier={TEXT_CAP}>Yeni çıkartma!</Text>
             </Animated.View>
           ) : (
             <View style={styles.cheer}>

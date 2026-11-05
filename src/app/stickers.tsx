@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { G, Path } from 'react-native-svg';
@@ -13,7 +13,7 @@ import { Icon } from '../components/ui/Icon';
 import { PastelBackground } from '../components/ui/PastelBackground';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ownedStickerIds, useApp } from '../store/useApp';
-import { C, FONT, softShadow } from '../theme';
+import { C, FONT, softShadow, TEXT_CAP } from '../theme';
 import { haptic } from '../utils/feedback';
 
 /** soft silhouette for a sticker that is still waiting to be earned */
@@ -96,7 +96,7 @@ export default function Stickers() {
         right={
           <View style={[styles.count, softShadow(4)]}>
             <Icon name="star" size={26} color="#FFD24A" />
-            <Text style={styles.countText}>
+            <Text style={styles.countText} maxFontSizeMultiplier={TEXT_CAP}>
               {ownedSet.size}/{STICKERS.length}
             </Text>
           </View>
@@ -117,7 +117,8 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', paddingHorizontal: 16, paddingTop: 8 },
   cell: { borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  ownedCell: { backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 3, borderColor: '#F3D9FF' },
+  // opaque on iOS so the shadow path is cheap (see color/[id].tsx PANEL_BG)
+  ownedCell: { backgroundColor: Platform.OS === 'ios' ? '#FFFFFF' : 'rgba(255,255,255,0.9)', borderWidth: 3, borderColor: '#F3D9FF' },
   lockedCell: { backgroundColor: 'rgba(255,255,255,0.45)', borderWidth: 3, borderColor: 'rgba(214,203,230,0.7)', borderStyle: 'dashed' },
   newBadge: { position: 'absolute', top: -8, right: -8 },
   count: {

@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { sound } from '../audio/sound';
@@ -19,6 +19,8 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const landscape = width > height;
   const [gate, setGate] = useState(false);
+  // iOS: open the parent screen only after the gate has finished closing
+  const toParents = useRef(false);
   const fresh = useApp((s) => s.fresh.length);
   const settings = useApp((s) => s.settings);
   const setSetting = useApp((s) => s.setSetting);
@@ -107,6 +109,12 @@ export default function Home() {
         onClose={() => setGate(false)}
         onPass={() => {
           setGate(false);
+          if (Platform.OS === 'ios') toParents.current = true;
+          else router.push('/parents');
+        }}
+        onDismiss={() => {
+          if (!toParents.current) return;
+          toParents.current = false;
           router.push('/parents');
         }}
       />

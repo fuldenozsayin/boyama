@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import React, { useState, useSyncExternalStore } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ALL_PICTURES } from '../art';
 import { STICKERS } from '../art/stickers';
@@ -15,13 +15,16 @@ import { onStorageHealthChange, storageHasFailed } from '../store/storageHealth'
 import { ownedStickerIds, useApp, type Settings } from '../store/useApp';
 import { C, FONT, softShadow } from '../theme';
 
-const ROWS: { key: keyof Settings; label: TKey }[] = [
+type Row = { key: keyof Settings; label: TKey };
+const ROWS = ([
   { key: 'sfx', label: 'parent.sfx' },
   { key: 'music', label: 'parent.music' },
   { key: 'voice', label: 'parent.voice' },
   { key: 'haptics', label: 'parent.haptics' },
   { key: 'leftHanded', label: 'parent.leftHanded' },
-];
+] as Row[])
+  // iPads have no Taptic Engine: a vibration switch there would do nothing
+  .filter((r) => !(r.key === 'haptics' && Platform.OS === 'ios' && Platform.isPad));
 
 export default function Parents() {
   const insets = useSafeAreaInsets();

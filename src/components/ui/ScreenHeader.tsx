@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { sound } from '../../audio/sound';
-import { C, FONT } from '../../theme';
+import { C, FONT, TEXT_CAP } from '../../theme';
 import { BubbleButton } from './BubbleButton';
 import { Icon, type IconName } from './Icon';
 
@@ -40,7 +40,7 @@ export function ScreenHeader({
       <View style={styles.center}>
         {icon ? <Icon name={icon} size={44} color={iconColor} accent={C.pinkMid} /> : null}
         {title ? (
-          <Text style={styles.title} numberOfLines={2}>
+          <Text style={[styles.title, Platform.OS === 'ios' ? styles.titleIos : styles.titleLine]} numberOfLines={2} maxFontSizeMultiplier={TEXT_CAP}>
             {title}
           </Text>
         ) : null}
@@ -56,12 +56,15 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: FONT.black,
     fontSize: 21,
-    lineHeight: 25,
     textAlign: 'center',
     color: C.ink,
     textShadowColor: '#fff',
     textShadowRadius: 8,
     flexShrink: 1,
   },
+  titleLine: { lineHeight: 25 },
+  // iOS keeps the font's natural line height (a tighter one clips the dots of
+  // Ö/Ü/ğ/i) and only draws a text shadow when an offset is set
+  titleIos: { textShadowOffset: { width: 0, height: 0 } },
   right: { minWidth: 60, alignItems: 'flex-end' },
 });

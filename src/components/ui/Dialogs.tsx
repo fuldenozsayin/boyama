@@ -3,7 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, Vi
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../../i18n/tr';
-import { C, FONT, softShadow } from '../../theme';
+import { C, FONT, softShadow, TEXT_CAP } from '../../theme';
 import { tapFeedback } from '../../utils/feedback';
 import { BubbleButton } from './BubbleButton';
 import { Icon, type IconName } from './Icon';
@@ -16,6 +16,7 @@ export function ConfirmDialog({
   message,
   onYes,
   onNo,
+  onDismiss,
 }: {
   visible: boolean;
   icon: IconName;
@@ -23,13 +24,22 @@ export function ConfirmDialog({
   message?: string;
   onYes: () => void;
   onNo: () => void;
+  /** iOS only: called once the closing animation has finished */
+  onDismiss?: () => void;
 }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onNo} supportedOrientations={['portrait', 'landscape']}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onNo}
+      onDismiss={onDismiss}
+      supportedOrientations={['portrait', 'landscape']}
+    >
       <View style={styles.backdrop}>
         <View style={[styles.card, softShadow(12)]}>
           <Icon name={icon} size={96} color={iconColor} />
-          {message ? <Text style={styles.msg}>{message}</Text> : null}
+          {message ? <Text style={styles.msg} maxFontSizeMultiplier={TEXT_CAP}>{message}</Text> : null}
           <View style={styles.row}>
             <BubbleButton a11y={t('no')} size={80} color={C.pinkMid} onPress={onNo} testID="confirm-no">
               <Icon name="close" size={50} />
@@ -56,9 +66,27 @@ function makeQuestion() {
  * Parental gate: a multiplication written in words + number pad.
  * Pre-readers can't solve it; adults pass in seconds.
  */
-export function ParentGate({ visible, onPass, onClose }: { visible: boolean; onPass: () => void; onClose: () => void }) {
+export function ParentGate({
+  visible,
+  onPass,
+  onClose,
+  onDismiss,
+}: {
+  visible: boolean;
+  onPass: () => void;
+  onClose: () => void;
+  /** iOS only: called once the closing animation has finished */
+  onDismiss?: () => void;
+}) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} supportedOrientations={['portrait', 'landscape']}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      onDismiss={onDismiss}
+      supportedOrientations={['portrait', 'landscape']}
+    >
       {/* mounted only while open, so every opening starts with a fresh question */}
       {visible ? <GateBody onPass={onPass} onClose={onClose} /> : null}
     </Modal>
@@ -117,13 +145,13 @@ function GateBody({ onPass, onClose }: { onPass: () => void; onClose: () => void
           <Icon name="close" size={34} color={C.pinkMid} />
         </Pressable>
         <View style={styles.gateInfo}>
-          <Text style={styles.gateTitle}>{t('parent.gateTitle')}</Text>
-          <Text style={styles.gateHint}>{t('parent.gateHint')}</Text>
-          <Text style={styles.question} testID="gate-question">
+          <Text style={styles.gateTitle} maxFontSizeMultiplier={TEXT_CAP}>{t('parent.gateTitle')}</Text>
+          <Text style={styles.gateHint} maxFontSizeMultiplier={TEXT_CAP}>{t('parent.gateHint')}</Text>
+          <Text style={styles.question} testID="gate-question" maxFontSizeMultiplier={TEXT_CAP}>
             {WORDS[q.a]} çarpı {WORDS[q.b]} kaç eder?
           </Text>
           <View style={styles.answer}>
-            <Text style={styles.answerText} testID="gate-answer">{input || ' '}</Text>
+            <Text style={styles.answerText} testID="gate-answer" maxFontSizeMultiplier={TEXT_CAP}>{input || ' '}</Text>
           </View>
         </View>
         <View style={[styles.pad, compact && { marginTop: 0, gap: 8 }]}>
@@ -136,7 +164,7 @@ function GateBody({ onPass, onClose }: { onPass: () => void; onClose: () => void
               accessibilityLabel={k === '⌫' ? 'Sil' : k}
               testID={`gate-key-${k}`}
             >
-              {k === '⌫' ? <Icon name="back" size={30} color="#fff" /> : <Text style={styles.keyText}>{k}</Text>}
+              {k === '⌫' ? <Icon name="back" size={30} color="#fff" /> : <Text style={styles.keyText} maxFontSizeMultiplier={TEXT_CAP}>{k}</Text>}
             </Pressable>
           ))}
         </View>

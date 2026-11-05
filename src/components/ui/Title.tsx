@@ -1,6 +1,6 @@
 import { useIsFocused } from 'expo-router';
 import React, { memo, useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -12,6 +12,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { FONT } from '../../theme';
+
+const IOS = Platform.OS === 'ios';
 
 const LETTER_COLORS = ['#FF7EB0', '#A98BEA', '#3FBF8A', '#F2B92B', '#5DA8F0', '#FF9468'];
 
@@ -38,9 +40,16 @@ const Letter = memo(function Letter({ ch, i, size }: { ch: string; i: number; si
   if (ch === ' ') return <View style={{ width: size * 0.3 }} />;
   return (
     <Animated.Text
+      // decorative and already sized from the window; the header carries the a11y label
+      allowFontScaling={!IOS}
       style={[
         styles.letter,
-        { fontSize: size, lineHeight: size * 1.2, color: LETTER_COLORS[i % LETTER_COLORS.length] },
+        IOS ? styles.letterIos : null,
+        { fontSize: size, color: LETTER_COLORS[i % LETTER_COLORS.length] },
+        // iOS clips glyphs and glow to a line box smaller than the font's own
+        // (Baloo 2 is ~1.6 em tall): keep the natural line height there and
+        // pull the row back to the same 1.2 em footprint with margins
+        IOS ? { marginVertical: -size * 0.2 } : { lineHeight: size * 1.2 },
         style,
       ]}
     >
@@ -74,4 +83,6 @@ const styles = StyleSheet.create({
     textShadowRadius: 10,
     textShadowOffset: { width: 0, height: 2 },
   },
+  // room for the white glow at the sides, without changing the letter spacing
+  letterIos: { paddingHorizontal: 8, marginHorizontal: -8 },
 });

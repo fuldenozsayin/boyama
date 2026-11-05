@@ -10,7 +10,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { C, darken, FONT, softShadow } from '../../theme';
+import { C, darken, FONT, softShadow, TEXT_CAP } from '../../theme';
 import { tapFeedback } from '../../utils/feedback';
 
 interface Props {
@@ -119,7 +119,7 @@ export function BubbleButton({
             <View style={[styles.shine, { width: w * 0.42, height: size * 0.14, borderRadius: size, left: w * 0.16, top: size * 0.1 }]} />
             {children}
             {label ? (
-              <Text numberOfLines={1} style={[styles.label, { fontSize: Math.max(14, size * 0.28) }]}>
+              <Text numberOfLines={1} maxFontSizeMultiplier={TEXT_CAP} style={[styles.label, { fontSize: Math.max(14, size * 0.28) }]}>
                 {label}
               </Text>
             ) : null}

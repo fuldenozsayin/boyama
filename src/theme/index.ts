@@ -65,6 +65,14 @@ export const FONT = {
 
 export const RADIUS = { s: 14, m: 22, l: 32, xl: 44 };
 
+/**
+ * iOS Dynamic Type can scale text up to 3.5x. Labels that live in fixed-size
+ * bubbles, cards and keys stop growing at this factor so they never spill out
+ * (Android keeps its own font-scale behaviour). Parent-facing body text is
+ * left free to scale.
+ */
+export const TEXT_CAP = Platform.OS === 'ios' ? 1.3 : undefined;
+
 /** soft drop shadow that works on iOS, Android and web */
 export function softShadow(elevation = 6, color: string = C.shadow) {
   return Platform.select({

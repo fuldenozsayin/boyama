@@ -39,6 +39,8 @@ const SOURCES = {
 
 export type SfxKey = keyof typeof SOURCES;
 export type LoopKey = 'brush' | 'erase' | 'sparkle';
+const LOOP_KEYS: readonly SfxKey[] = ['brush', 'erase', 'sparkle', 'music'];
+const IOS = Platform.OS === 'ios';
 
 // each Android player is a full ExoPlayer: keep the pool small
 const POOL: Partial<Record<SfxKey, number>> = { tap: 2 };
@@ -66,11 +68,13 @@ class SoundEngine {
   init() {
     if (this.ready) return;
     this.ready = true;
-    // Android: `false` would mute every sound whenever the phone is on vibrate
-    // (very common) and pause the music on ringer changes. iOS keeps respecting
-    // the silent switch. Never interrupt other apps' audio.
+    // Play even when the phone is on vibrate / the iPhone Ring-Silent switch is
+    // on silent: many parents keep their phone silenced, and the spoken
+    // guidance is essential for children who can't read yet. Volume buttons and
+    // the in-app switches stay in control. Never interrupt other apps' audio
+    // (mixWithOthers) and never play in the background.
     setAudioModeAsync({
-      playsInSilentMode: Platform.OS === 'android',
+      playsInSilentMode: true,
       interruptionMode: 'mixWithOthers',
       shouldPlayInBackground: false,
     }).catch(() => {});
@@ -81,8 +85,11 @@ class SoundEngine {
       let pool = this.pools.get(key);
       if (!pool) {
         const n = POOL[key] ?? 1;
-        pool = Array.from({ length: n }, () => createAudioPlayer(SOURCES[key]));
+        // iOS: keep the audio session up between effects instead of tearing it
+        // down ~100 ms after every clip (speech shares the same session)
+        pool = Array.from({ length: n }, () => createAudioPlayer(SOURCES[key], { keepAudioSessionActive: IOS }));
         pool.forEach((p) => (p.volume = VOLUME[key] ?? 0.8));
+        if (IOS) pool.forEach((p) => this.watchIos(key, p));
         this.pools.set(key, pool);
       }
       const i = this.cursor.get(key) ?? 0;
@@ -93,10 +100,34 @@ class SoundEngine {
     }
   }
 
+  /**
+   * iOS only.
+   * - A finished AVPlayer stays parked at its end, and play() does not rewind
+   *   it. Rewind each effect as soon as it ends, so the next play() starts
+   *   instantly from the beginning.
+   * - expo-audio resumes players by itself after an interruption, a route
+   *   change or a return to the foreground. A brush loop must never come back
+   *   unless a stroke is in progress.
+   */
+  private watchIos(key: SfxKey, p: AudioPlayer) {
+    const isLoop = LOOP_KEYS.includes(key);
+    p.addListener('playbackStatusUpdate', (st) => {
+      try {
+        if (!isLoop && st.didJustFinish) p.seekTo(0).catch(() => {});
+        else if (isLoop && key !== 'music' && st.playing && this.activeLoop !== key) p.pause();
+      } catch {
+        /* ignore */
+      }
+    });
+  }
+
   /** warm up the most common players (after start-up) so the first tap is instant */
   preload() {
     setTimeout(() => {
-      (['tap', 'whoosh', 'pop0', 'pop2', 'pop4', 'celebrate'] as SfxKey[]).forEach((k) => this.player(k));
+      const keys: SfxKey[] = ['tap', 'whoosh', 'pop0', 'pop2', 'pop4', 'celebrate'];
+      // AVPlayers are cheap: warm up every bloop and the brush on iOS too
+      if (IOS) keys.push('pop1', 'pop3', 'pop5', 'pop6', 'pop7', 'brush', 'undo', 'sticker');
+      keys.forEach((k) => this.player(k));
     }, 1200);
   }
 
@@ -113,8 +144,17 @@ class SoundEngine {
     const p = this.player(key);
     if (!p) return;
     try {
-      p.seekTo(0).catch(() => {});
-      p.play();
+      if (IOS) {
+        // iOS: play() runs at once but seekTo() is async, so "seek, play"
+        // would start at the clip's end (silence) and rewind afterwards.
+        // Finished clips are already rewound (watchIos); otherwise wait for
+        // the seek before playing.
+        if (!p.playing && p.currentTime < 0.02) p.play();
+        else p.seekTo(0).then(() => p.play(), () => {});
+      } else {
+        p.seekTo(0).catch(() => {});
+        p.play();
+      }
     } catch {
       // audio is a nice-to-have; never crash the game for it
     }

@@ -13,7 +13,7 @@ import { PastelBackground } from '../components/ui/PastelBackground';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { EMPTY_STATE } from '../engine/paint';
 import { useApp } from '../store/useApp';
-import { darken, FONT, softShadow } from '../theme';
+import { darken, FONT, softShadow, TEXT_CAP } from '../theme';
 import { haptic } from '../utils/feedback';
 
 function CategoryCard({ cat, width, index }: { cat: Category; width: number; index: number }) {
@@ -59,7 +59,7 @@ function CategoryCard({ cat, width, index }: { cat: Category; width: number; ind
             <Icon key={p.id} name="star" size={Math.min(26, width / 8)} color={i < done ? '#FFD24A' : '#FFFFFF'} />
           ))}
         </View>
-        <Text style={[styles.cardTitle, { color: darken(cat.accent, 0.35) }]} numberOfLines={2}>
+        <Text style={[styles.cardTitle, { color: darken(cat.accent, 0.35) }]} numberOfLines={2} maxFontSizeMultiplier={TEXT_CAP}>
           {cat.title}
         </Text>
       </Pressable>

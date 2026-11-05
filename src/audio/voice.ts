@@ -91,7 +91,9 @@ class VoiceGuide {
     }
     if (!(await (this.ready ?? this.checkVoices()))) return;
     if (!this.enabled) return;
-    Speech.speak(t(key), { language: LANG, voice: this.trVoice, pitch: 1.15, rate: 0.92 });
+    // iOS: `language` alone picks the Turkish voice chosen in Settings (and an
+    // enhanced voice if downloaded); a voice id would override that choice
+    Speech.speak(t(key), { language: LANG, voice: Platform.OS === 'ios' ? undefined : this.trVoice, pitch: 1.15, rate: 0.92 });
   }
 
   praise() {
