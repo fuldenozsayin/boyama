@@ -1,0 +1,133 @@
+# Real iOS build + UI test, no Apple account needed.
+#
+# Compiles the app for the iOS Simulator on a GitHub macOS runner (Release
+# configuration, JS bundled exactly like a TestFlight build, but unsigned),
+# runs it on an iPhone and an iPad simulator, drives it with Maestro
+# (.maestro/*.yaml: taps, brush strokes, autosave/relaunch, celebration,
+# gallery, landscape) and uploads screenshots + logs as artifacts.
+#
+# This is a compatibility check, NOT the signed TestFlight build
+# (see .github/workflows/ios-testflight.yml for that).
+name: iOS simulator build & UI test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "app.json"
+      - "package.json"
+      - "package-lock.json"
+      - "patches/**"
+      - "plugins/**"
+      - ".maestro/**"
+      - ".github/workflows/ios-simulator.yml"
+
+concurrency:
+  group: ios-simulator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-simulator:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Select the newest Xcode (SDK 58 needs Xcode 26.4+)
+        run: |
+          ls -d /Applications/Xcode*.app || true
+          XCODE=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE/Contents/Developer"; fi
+          xcodebuild -version
+          xcrun simctl list runtimes
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate the native iOS project (Expo prebuild + CocoaPods)
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Build for the iOS Simulator (Release, unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace ios/MinikRenklerDunyasi.xcworkspace \
+            -scheme MinikRenklerDunyasi \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/ios \
+            CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO \
+            | tee xcodebuild.log | grep -E "error:|\*\* BUILD|Compiling|Linking" | grep -vE "^\s*$" | tail -60
+          ls -la build/ios/Build/Products/Release-iphonesimulator/
+
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Run UI tests on iPhone and iPad simulators
+        run: |
+          APP=build/ios/Build/Products/Release-iphonesimulator/MinikRenklerDunyasi.app
+          mkdir -p out
+          pick() {
+            xcrun simctl list devices available -j | python3 -c "
+          import json, sys, re
+          want = sys.argv[1]
+          devs = json.load(sys.stdin)['devices']
+          best = None
+          for rt, items in devs.items():
+              m = re.search(r'iOS-(\d+)-(\d+)', rt)
+              if not m: continue
+              ver = (int(m.group(1)), int(m.group(2)))
+              for d in items:
+                  if re.match(want, d['name']):
+                      key = (ver, d['name'])
+                      if best is None or key > best[0]:
+                          best = (key, d['udid'], d['name'], rt)
+          print(best[1] + '|' + best[2] + '|' + best[3] if best else '')
+          " "$1"
+          }
+          run_on() {
+            local label=$1 pattern=$2
+            local info=$(pick "$pattern")
+            if [ -z "$info" ]; then echo "no $label simulator"; return 0; fi
+            local udid=${info%%|*}
+            echo "== $label: $info"
+            xcrun simctl boot "$udid" || true
+            xcrun simctl bootstatus "$udid" -b
+            xcrun simctl install "$udid" "$APP"
+            mkdir -p "out/$label"
+            ( cd "out/$label" && maestro --device "$udid" test ../../.maestro/smoke.yaml --format junit --output smoke-junit.xml ) || echo "SMOKE FAILED on $label" | tee -a out/failures.txt
+            ( cd "out/$label" && maestro --device "$udid" test ../../.maestro/landscape.yaml ) || echo "LANDSCAPE FAILED on $label" | tee -a out/failures.txt
+            xcrun simctl io "$udid" screenshot "out/$label/final.png" || true
+            xcrun simctl spawn "$udid" log show --last 15m --predicate 'process == "MinikRenklerDunyasi"' --style compact > "out/$label/app.log" 2>/dev/null || true
+            xcrun simctl shutdown "$udid" || true
+          }
+          run_on iphone '^iPhone 1[6-9]( Pro)?$|^iPhone 2[0-9]( Pro)?$'
+          run_on ipad '^iPad (Pro|Air)'
+          cp -R ~/.maestro/tests out/maestro-debug 2>/dev/null || true
+          ls -R out | head -80
+          if [ -f out/failures.txt ]; then cat out/failures.txt; exit 1; fi
+
+      - name: Upload screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ios-simulator-results
+          path: |
+            out/
+            xcodebuild.log
+          retention-days: 14

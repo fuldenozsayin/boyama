@@ -1,0 +1,205 @@
+# iOS / Android UI smoke test (Maestro). Run by .github/workflows/ios-simulator.yml.
+# Taps use the app's testIDs (accessibility identifiers on iOS).
+appId: com.minikrenkler.dunyasi
+name: Minik Renkler Dünyası – smoke
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: home-play
+    timeout: 90000
+- takeScreenshot: 01-home
+- tapOn:
+    id: home-play
+    waitToSettleTimeoutMs: 800
+- extendedWaitUntil:
+    visible:
+      id: category-unicorn
+    timeout: 20000
+- takeScreenshot: 02-categories
+- tapOn:
+    id: category-unicorn
+    waitToSettleTimeoutMs: 800
+- extendedWaitUntil:
+    visible:
+      id: picture-unicorn-rainbow-hill
+    timeout: 20000
+- takeScreenshot: 03-category
+- tapOn:
+    id: picture-unicorn-rainbow-hill
+    waitToSettleTimeoutMs: 800
+- extendedWaitUntil:
+    visible:
+      id: coloring-canvas
+    timeout: 30000
+- takeScreenshot: 04-colour-empty
+
+# tap-to-fill with a few colours and a magic paint
+- tapOn:
+    point: "12%,22%"
+    waitToSettleTimeoutMs: 400
+- tapOn:
+    id: "swatch-#7CC8FF"
+    waitToSettleTimeoutMs: 400
+- tapOn:
+    point: "50%,40%"
+    waitToSettleTimeoutMs: 400
+- tapOn:
+    id: effect-glitter
+    waitToSettleTimeoutMs: 400
+- tapOn:
+    point: "85%,20%"
+    waitToSettleTimeoutMs: 400
+- takeScreenshot: 05-filled
+
+# brush stroke (must stay inside the region it starts in)
+- tapOn:
+    id: effect-rainbow
+    waitToSettleTimeoutMs: 400
+- tapOn:
+    id: tool-brush
+    waitToSettleTimeoutMs: 400
+- swipe:
+    start: "30%,42%"
+    end: "70%,44%"
+    duration: 900
+- takeScreenshot: 06-brush
+
+# undo / redo
+- tapOn:
+    id: undo
+    waitToSettleTimeoutMs: 400
+- takeScreenshot: 07-undo
+- tapOn:
+    id: redo
+    waitToSettleTimeoutMs: 400
+
+# sticker
+- tapOn:
+    id: tool-sticker
+    waitToSettleTimeoutMs: 400
+- tapOn:
+    point: "25%,35%"
+    waitToSettleTimeoutMs: 400
+- takeScreenshot: 08-sticker
+
+# hint + done gate
+- tapOn:
+    id: tool-fill
+    waitToSettleTimeoutMs: 400
+- tapOn:
+    id: hint
+    waitToSettleTimeoutMs: 300
+- takeScreenshot: 09-hint
+- tapOn:
+    id: done
+    waitToSettleTimeoutMs: 600
+- takeScreenshot: 10-done
+
+# leave the page: autosave
+- tapOn:
+    id: color-back
+    waitToSettleTimeoutMs: 800
+- extendedWaitUntil:
+    visible:
+      id: picture-unicorn-rainbow-hill
+    timeout: 20000
+- takeScreenshot: 11-category-progress
+
+# relaunch: progress must be restored
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: home-play
+    timeout: 60000
+- tapOn:
+    id: home-play
+    waitToSettleTimeoutMs: 800
+- tapOn:
+    id: category-unicorn
+    waitToSettleTimeoutMs: 800
+- tapOn:
+    id: picture-unicorn-rainbow-hill
+    waitToSettleTimeoutMs: 800
+- extendedWaitUntil:
+    visible:
+      id: coloring-canvas
+    timeout: 30000
+- takeScreenshot: 12-restored
+- tapOn:
+    id: color-back
+    waitToSettleTimeoutMs: 800
+- tapOn:
+    id: back
+    waitToSettleTimeoutMs: 800
+- tapOn:
+    id: back
+    waitToSettleTimeoutMs: 800
+
+# free drawing -> celebration -> gallery
+- extendedWaitUntil:
+    visible:
+      id: home-free
+    timeout: 20000
+- tapOn:
+    id: home-free
+    waitToSettleTimeoutMs: 800
+- extendedWaitUntil:
+    visible:
+      id: coloring-canvas
+    timeout: 30000
+- tapOn:
+    id: tool-brush
+    waitToSettleTimeoutMs: 400
+- swipe:
+    start: "20%,30%"
+    end: "80%,50%"
+    duration: 900
+- swipe:
+    start: "20%,50%"
+    end: "80%,30%"
+    duration: 900
+- tapOn:
+    id: tool-fill
+    waitToSettleTimeoutMs: 400
+- tapOn:
+    point: "50%,60%"
+    waitToSettleTimeoutMs: 400
+- tapOn:
+    id: done
+    waitToSettleTimeoutMs: 400
+- extendedWaitUntil:
+    visible:
+      id: celebration
+    timeout: 15000
+- takeScreenshot: 13-celebration
+- tapOn:
+    id: cel-gallery
+    waitToSettleTimeoutMs: 800
+- takeScreenshot: 14-gallery
+- tapOn:
+    id: back
+    waitToSettleTimeoutMs: 800
+
+# sticker book and parent gate
+- extendedWaitUntil:
+    visible:
+      id: home-stickers
+    timeout: 20000
+- tapOn:
+    id: home-stickers
+    waitToSettleTimeoutMs: 800
+- takeScreenshot: 15-stickers
+- tapOn:
+    id: back
+    waitToSettleTimeoutMs: 800
+- tapOn:
+    id: home-parents
+    waitToSettleTimeoutMs: 800
+- extendedWaitUntil:
+    visible:
+      id: parent-gate
+    timeout: 10000
+- takeScreenshot: 16-parent-gate

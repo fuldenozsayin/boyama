@@ -1,0 +1,30 @@
+# Landscape layout check (phones and iPad).
+appId: com.minikrenkler.dunyasi
+name: Minik Renkler Dünyası – landscape
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: home-play
+    timeout: 60000
+- setOrientation: LANDSCAPE_LEFT
+- takeScreenshot: L1-home
+- tapOn:
+    id: home-play
+    waitToSettleTimeoutMs: 800
+- tapOn:
+    id: category-princess
+    waitToSettleTimeoutMs: 800
+- tapOn:
+    id: picture-princess-ball-gown
+    waitToSettleTimeoutMs: 800
+- extendedWaitUntil:
+    visible:
+      id: coloring-canvas
+    timeout: 30000
+- takeScreenshot: L2-colour
+- tapOn:
+    id: tool-brush
+    waitToSettleTimeoutMs: 400
+- takeScreenshot: L3-colour-brush
+- setOrientation: PORTRAIT
