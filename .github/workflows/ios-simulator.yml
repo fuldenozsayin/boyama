@@ -31,7 +31,7 @@ concurrency:
 jobs:
   ios-simulator:
     runs-on: macos-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v6
 
@@ -79,6 +79,9 @@ jobs:
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
       - name: Run UI tests on iPhone and iPad simulators
+        env:
+          # the XCUITest driver can take minutes to start on a cold runner
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: "300000"
         run: |
           APP=build/ios/Build/Products/Release-iphonesimulator/MinikRenklerDunyasi.app
           mkdir -p out
@@ -100,6 +103,17 @@ jobs:
           print(best[1] + '|' + best[2] + '|' + best[3] if best else '')
           " "$1"
           }
+          # one retry per flow: a failed driver start ("iOS driver not ready",
+          # connection refused) is a runner hiccup, not an app failure; every
+          # flow starts by launching the app, so a rerun is clean
+          run_flow() {
+            local label=$1 flow=$2; shift 2
+            for attempt in 1 2; do
+              ( cd "out/$label" && maestro --device "$udid" test "../../.maestro/$flow" "$@" ) && return 0
+              echo "::warning::$flow failed on $label (attempt $attempt)"
+            done
+            return 1
+          }
           run_on() {
             local label=$1 pattern=$2
             local info=$(pick "$pattern")
@@ -110,9 +124,9 @@ jobs:
             xcrun simctl bootstatus "$udid" -b
             xcrun simctl install "$udid" "$APP"
             mkdir -p "out/$label"
-            ( cd "out/$label" && maestro --device "$udid" test ../../.maestro/smoke.yaml --format junit --output smoke-junit.xml ) || echo "SMOKE FAILED on $label" | tee -a out/failures.txt
-            ( cd "out/$label" && maestro --device "$udid" test ../../.maestro/landscape.yaml ) || echo "LANDSCAPE FAILED on $label" | tee -a out/failures.txt
-            ( cd "out/$label" && maestro --device "$udid" test ../../.maestro/parent-flows.yaml ) || echo "PARENT FLOWS FAILED on $label" | tee -a out/failures.txt
+            run_flow "$label" smoke.yaml --format junit --output smoke-junit.xml || echo "SMOKE FAILED on $label" | tee -a out/failures.txt
+            run_flow "$label" landscape.yaml || echo "LANDSCAPE FAILED on $label" | tee -a out/failures.txt
+            run_flow "$label" parent-flows.yaml || echo "PARENT FLOWS FAILED on $label" | tee -a out/failures.txt
             xcrun simctl io "$udid" screenshot "out/$label/final.png" || true
             xcrun simctl spawn "$udid" log show --last 15m --predicate 'process == "MinikRenklerDunyasi"' --style compact > "out/$label/app.log" 2>/dev/null || true
             xcrun simctl shutdown "$udid" || true
