@@ -41,8 +41,9 @@ name: Minik Renkler Dünyası – smoke
 - tapOn:
     point: "12%,22%"
     waitToSettleTimeoutMs: 400
+# a swatch that is on screen on every width (the palette scrolls on phones)
 - tapOn:
-    id: "swatch-#7CC8FF"
+    id: "swatch-#FFE14D"
     waitToSettleTimeoutMs: 400
 - tapOn:
     point: "50%,40%"
