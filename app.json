@@ -14,7 +14,13 @@
       "bundleIdentifier": "com.minikrenkler.dunyasi",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "UIStatusBarHidden": true
+        "UIStatusBarHidden": true,
+        "CFBundleDisplayName": "Minik Renkler",
+        "CFBundleDevelopmentRegion": "tr",
+        "CFBundleLocalizations": [
+          "tr"
+        ],
+        "RCTAsyncStorageExcludeFromBackup": false
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,

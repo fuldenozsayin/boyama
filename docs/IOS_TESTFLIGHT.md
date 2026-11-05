@@ -15,9 +15,9 @@ yüklemenin adımlarını anlatır.
 
 | Aşama | Kim | Durum |
 | --- | --- | --- |
-| iOS uyumluluk denetimi ve düzeltmeler | Claude | ✅ (bkz. "iOS'a özel yapılanlar") |
+| iOS uyumluluk denetimi ve düzeltmeler | Claude | ✅ |
 | iOS Simülatör'de gerçek derleme + otomatik arayüz testi | Claude | GitHub Actions → **iOS simulator build & UI test** |
-| EAS/TestFlight yapılandırması (`eas.json`, `.github/workflows/ios-testflight.yml`) | Claude | ✅ |
+| EAS/TestFlight yapılandırması (`eas.json`, `.github/workflows/ios-testflight.yml`, `scripts/ci/eas-ios-credentials.py`) | Claude | ✅ |
 | Bundle ID + App Store Connect kaydı + API anahtarı + Expo hesabı | **Siz** (tarayıcıda) | ⏳ aşağıdaki 1–6. adımlar |
 | İmzalı iOS derlemesi + TestFlight'a yükleme | Claude (siz "hazır" deyince) | ⏳ hesap erişimini bekliyor |
 | iPhone'a kurulum | **Siz** | ⏳ 8. adım |
@@ -69,9 +69,10 @@ değerleri göremeyiz, sadece derleme makinesi kullanır.
 
 ## 4. App Store Connect API anahtarı (3 dk)
 
-Bu anahtar, derleme makinesinin sizin yerinize sertifika oluşturup
-TestFlight'a yükleme yapabilmesini sağlar; Apple ID şifrenize ve iki adımlı
-doğrulamaya gerek kalmaz. İstediğiniz an iptal edebilirsiniz.
+Bu anahtar, derleme makinesinin sizin yerinize Minik Renkler Dünyası için
+imza sertifikası ve profil hazırlamasını, derlemeyi TestFlight'a yüklemesini
+ve iç test grubunu kurmasını sağlar. Apple ID şifrenize ve iki adımlı
+doğrulamaya gerek kalmaz. Anahtarı istediğiniz an iptal edebilirsiniz.
 
 1. App Store Connect → **Kullanıcılar ve Erişim (Users and Access)** →
    **Entegrasyonlar (Integrations)** → **App Store Connect API** →
@@ -122,30 +123,46 @@ başlatırım (isterseniz siz de başlatabilirsiniz: **Actions → iOS TestFligh
 
 1. Kodun lint, tür ve birim testlerini çalıştırır.
 2. Expo projesini oluşturur/bağlar.
-3. Expo'nun macOS sunucusunda **imzalı** iOS derlemesini yapar
-   (`distribution: store`). Sertifika ve provisioning profile yalnızca
-   `com.minikrenkler.dunyasi` için oluşturulur. Kuyruk + derleme genellikle
-   20–45 dakika sürer.
-4. Derlemeyi App Store Connect'e yükler ve iç test (internal testing) grubunu
-   kurar.
+3. **İmza (yalnızca ilk çalıştırmada):**
+   - Ekibinizde geçerli bir Apple dağıtım sertifikası (Apple Distribution
+     Certificate) varsa onu **yeniden kullanır**. Bu sertifikalar uygulamaya
+     özel değildir; yeniden kullanmak LumiFlow'da hiçbir şeyi değiştirmez.
+   - Geçerli sertifika yoksa yeni bir tane oluşturur.
+   - Yalnızca `com.minikrenkler.dunyasi` için bir App Store provisioning
+     profile oluşturur.
+   - Bu adım yalnızca bu güvenli sorulara "evet" der; başka bir soru
+     çıkarsa durur. Sonraki çalıştırmalar kayıtlı imzayı kullanır.
+4. Expo'nun macOS sunucusunda **imzalı** iOS derlemesini yapar
+   (`distribution: store`). Kuyruk ve derleme genellikle 20–45 dakika sürer.
+5. Derlemeyi App Store Connect'e yükler. Ardından iç test (Internal Testing)
+   grubunu kurar, hesabınızdaki kişileri test eden olarak ekler ve derlemeyi
+   gruba verir.
 
 Apple işlemeyi bitirince (genellikle 10–30 dk) "build has completed
 processing" e-postası gelir.
 
-**Olası hata:** "maximum number of certificates" görürsem durur ve size
-yazarım. Hesabınızdaki mevcut (LumiFlow) sertifikalar **iptal edilmez**;
-ne yapılacağını birlikte seçeriz.
+**Olası hata:** Apple, bir ekipte en fazla 3 dağıtım sertifikasına izin
+verir. Sınır doluysa ve Expo hesabında kullanılabilir bir sertifika yoksa,
+iş akışı "sertifika sınırına ulaşıldı" hatasıyla **iptal sorusundan önce
+durur**. Hesabınızdaki mevcut (LumiFlow) sertifikalar **iptal edilmez**.
+Bu durumda size yazarım ve ne yapılacağını birlikte seçeriz.
 
 ## 8. iPhone'a kurulum (5 dk)
 
 1. iPhone'da App Store'dan **TestFlight** uygulamasını kurun.
 2. App Store Connect → **Minik Renkler Dünyası** → **TestFlight** → sol
-   menüde **İç Test (Internal Testing)** grubunu açın. Grupta kendi
-   e-postanız yoksa **Test Edenler (Testers)** yanındaki **+** ile kendinizi
-   ekleyin ve derlemenin gruba eklendiğini kontrol edin.
+   menüde **İç Test (Internal Testing)** altındaki grubu açın (iş akışı
+   otomatik oluşturur). Grupta kendi e-postanız yoksa **Test Edenler
+   (Testers)** yanındaki **+** ile kendinizi ekleyin ve derlemenin gruba
+   eklendiğini kontrol edin.
+   Grup yoksa: **İç Test** yanındaki **+** → bir ad verin (ör. `Aile`) →
+   kendinizi ekleyin → **Derlemeler (Builds)** sekmesinde **+** ile
+   derlemeyi ekleyin.
 3. Gelen davet e-postasındaki **View in TestFlight** bağlantısını iPhone'da
    açın (ya da TestFlight uygulamasına aynı Apple ID ile girin).
-4. TestFlight'ta **Minik Renkler Dünyası** → **Yükle (Install)**.
+4. TestFlight'ta **Minik Renkler Dünyası** → **Yükle (Install)**. Ana
+   ekranda simgenin altında kısa ad **Minik Renkler** görünür (uzun ad
+   iPhone'da kesileceği için).
 5. Uygulamayı açın. **Ebeveyn Ayarları → Sürüm** satırı `1.0.0` gösterir;
    hangi derlemenin kurulu olduğunu TestFlight'taki derleme numarası
    (ör. `1.0.0 (3)`) gösterir.
@@ -180,8 +197,9 @@ npx testflight
 Komut sizi adım adım yönlendirir: Expo'ya giriş, Bundle ID onayı
 (`com.minikrenkler.dunyasi`), Apple ID ile giriş ve **iPhone'unuza gelen
 iki adımlı doğrulama kodu**, sertifika oluşturma, derleme ve TestFlight'a
-yükleme. Sertifika sorusunda **yeni oluşturmayı** seçin; LumiFlow'a ait bir
-sertifikayı iptal etmeyi önerirse **hayır** deyin.
+yükleme. Sertifika sorusunda var olan sertifikayı **yeniden kullanmayı**
+(Reuse) ya da **yeni oluşturmayı** seçin. Herhangi bir sertifikayı iptal
+etmeyi (revoke) önerirse hiçbirini seçmeyin; işlemi durdurup bana yazın.
 
 ## Reklam
 

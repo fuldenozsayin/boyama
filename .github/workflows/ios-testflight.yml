@@ -14,9 +14,12 @@
 #   APPLE_TEAM_TYPE     INDIVIDUAL or COMPANY_OR_ORGANIZATION
 #   ASC_APP_ID          "Apple ID" number of the Minik Renkler Dünyası app record
 #
-# Only the bundle ID com.minikrenkler.dunyasi is used. EAS creates/uses a
-# provisioning profile for that bundle ID; it never revokes or edits other
-# apps' (e.g. LumiFlow's) certificates or profiles in non-interactive mode.
+# Only the bundle ID com.minikrenkler.dunyasi is used. The first run sets up
+# signing with the API key (scripts/ci/eas-ios-credentials.py): it reuses an
+# existing Apple Distribution Certificate or creates one, and creates an App
+# Store provisioning profile for this bundle ID only. It never revokes or edits
+# other apps' (e.g. LumiFlow's) certificates or profiles; if Apple's
+# certificate limit is reached it stops before any revoke question.
 name: iOS TestFlight
 
 on:
@@ -83,7 +86,16 @@ jobs:
             printf '%s' "$ASC_API_KEY_P8" | base64 -d > "$KEY"
           fi
           chmod 600 "$KEY"
-          echo "ASC_KEY_PATH=$KEY" >> "$GITHUB_ENV"
+          # eas-cli reads these for Apple authentication (build credentials,
+          # TestFlight group setup on submit) - no Apple ID password needed
+          {
+            echo "ASC_KEY_PATH=$KEY"
+            echo "EXPO_ASC_API_KEY_PATH=$KEY"
+            echo "EXPO_ASC_KEY_ID=$ASC_API_KEY_ID"
+            echo "EXPO_ASC_ISSUER_ID=$ASC_API_ISSUER_ID"
+            echo "EXPO_APPLE_TEAM_ID=$APPLE_TEAM_ID"
+            echo "EXPO_APPLE_TEAM_TYPE=$APPLE_TEAM_TYPE"
+          } >> "$GITHUB_ENV"
 
       - name: Link the Expo project (creates it on the first run)
         run: npx eas-cli@latest init --non-interactive --force
@@ -95,13 +107,17 @@ jobs:
              '.submit.production.ios = {ascAppId: $app, appleTeamId: $team, ascApiKeyPath: $key, ascApiKeyId: $kid, ascApiKeyIssuerId: $iss}' \
              eas.json > eas.tmp.json && mv eas.tmp.json eas.json
 
+      # eas build --non-interactive only uses stored credentials; the first
+      # certificate/profile can only be created interactively. This answers
+      # the "reuse / generate" questions with yes and stops on anything else
+      # (never revokes). Later runs find the stored credentials and ask nothing.
+      - name: iOS signing credentials (reuse or create; never revoke)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet pexpect==4.9.0
+          "$RUNNER_TEMP/venv/bin/python" scripts/ci/eas-ios-credentials.py
+
       - name: Build the signed iOS app on Expo (EAS Build)
-        env:
-          EXPO_ASC_API_KEY_PATH: ${{ env.ASC_KEY_PATH }}
-          EXPO_ASC_KEY_ID: ${{ env.ASC_API_KEY_ID }}
-          EXPO_ASC_ISSUER_ID: ${{ env.ASC_API_ISSUER_ID }}
-          EXPO_APPLE_TEAM_ID: ${{ env.APPLE_TEAM_ID }}
-          EXPO_APPLE_TEAM_TYPE: ${{ env.APPLE_TEAM_TYPE }}
         run: |
           npx eas-cli@latest build --platform ios --profile production --non-interactive --wait --json > build.json
           jq '.[0] | {id, status, appVersion, appBuildVersion}' build.json
