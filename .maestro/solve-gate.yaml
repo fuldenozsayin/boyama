@@ -1,0 +1,21 @@
+# Answers the parent gate ("yedi çarpı sekiz kaç eder?") like a parent would.
+appId: com.minikrenkler.dunyasi
+name: solve parent gate
+---
+- extendedWaitUntil:
+    visible:
+      id: gate-question
+    timeout: 10000
+- copyTextFrom:
+    id: gate-question
+- evalScript: ${output.ans = String((function (q) { var W = ['sıfır', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz']; var m = String(q).trim().split(/\s+/); return W.indexOf(m[0]) * W.indexOf(m[2]); })(maestro.copiedText))}
+- tapOn:
+    id: ${'gate-key-' + output.ans.charAt(0)}
+- runFlow:
+    when:
+      true: ${output.ans.length > 1}
+    commands:
+      - tapOn:
+          id: ${'gate-key-' + output.ans.charAt(1)}
+- tapOn:
+    id: gate-key-OK

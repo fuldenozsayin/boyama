@@ -112,6 +112,7 @@ jobs:
             mkdir -p "out/$label"
             ( cd "out/$label" && maestro --device "$udid" test ../../.maestro/smoke.yaml --format junit --output smoke-junit.xml ) || echo "SMOKE FAILED on $label" | tee -a out/failures.txt
             ( cd "out/$label" && maestro --device "$udid" test ../../.maestro/landscape.yaml ) || echo "LANDSCAPE FAILED on $label" | tee -a out/failures.txt
+            ( cd "out/$label" && maestro --device "$udid" test ../../.maestro/parent-flows.yaml ) || echo "PARENT FLOWS FAILED on $label" | tee -a out/failures.txt
             xcrun simctl io "$udid" screenshot "out/$label/final.png" || true
             xcrun simctl spawn "$udid" log show --last 15m --predicate 'process == "MinikRenklerDunyasi"' --style compact > "out/$label/app.log" 2>/dev/null || true
             xcrun simctl shutdown "$udid" || true

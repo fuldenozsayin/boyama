@@ -1,0 +1,93 @@
+# Parent-only flows that chain native modals (iOS can't present a modal while
+# another one is closing): gallery delete = viewer -> parent gate -> confirm,
+# and home -> parent gate -> parents screen.
+appId: com.minikrenkler.dunyasi
+name: Minik Renkler Dünyası – parent flows
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: home-free
+    timeout: 90000
+
+# make one artwork for the gallery
+- tapOn:
+    id: home-free
+    waitToSettleTimeoutMs: 800
+- extendedWaitUntil:
+    visible:
+      id: coloring-canvas
+    timeout: 30000
+- tapOn:
+    id: tool-brush
+    waitToSettleTimeoutMs: 400
+- swipe:
+    start: "20%,35%"
+    end: "80%,45%"
+    duration: 900
+- swipe:
+    start: "25%,50%"
+    end: "75%,30%"
+    duration: 900
+- tapOn:
+    id: tool-fill
+    waitToSettleTimeoutMs: 400
+- tapOn:
+    point: "50%,60%"
+    waitToSettleTimeoutMs: 400
+- tapOn:
+    id: done
+    waitToSettleTimeoutMs: 400
+- extendedWaitUntil:
+    visible:
+      id: celebration
+    timeout: 15000
+- tapOn:
+    id: cel-gallery
+    waitToSettleTimeoutMs: 800
+
+# gallery viewer -> parent gate -> delete confirmation -> deleted
+- tapOn:
+    id: "art-.*"
+    index: 0
+    waitToSettleTimeoutMs: 800
+- extendedWaitUntil:
+    visible:
+      id: viewer-delete
+    timeout: 10000
+- takeScreenshot: P1-viewer
+- tapOn:
+    id: viewer-delete
+- runFlow: solve-gate.yaml
+- extendedWaitUntil:
+    visible:
+      id: confirm-yes
+    timeout: 10000
+- takeScreenshot: P2-delete-confirm
+- tapOn:
+    id: confirm-yes
+- extendedWaitUntil:
+    notVisible:
+      id: viewer-delete
+    timeout: 10000
+- assertNotVisible:
+    id: "art-.*"
+- takeScreenshot: P3-gallery-after-delete
+- tapOn:
+    id: back
+    waitToSettleTimeoutMs: 800
+
+# home -> parent gate -> parents screen
+- extendedWaitUntil:
+    visible:
+      id: home-parents
+    timeout: 20000
+- tapOn:
+    id: home-parents
+- runFlow: solve-gate.yaml
+- extendedWaitUntil:
+    visible:
+      id: setting-sfx
+    timeout: 10000
+- takeScreenshot: P4-parents
