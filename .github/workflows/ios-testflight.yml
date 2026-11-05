@@ -16,8 +16,9 @@
 #
 # Only the bundle ID com.minikrenkler.dunyasi is used. The first run sets up
 # signing with the API key (scripts/ci/eas-ios-credentials.py): it reuses an
-# existing Apple Distribution Certificate or creates one, and creates an App
-# Store provisioning profile for this bundle ID only. It never revokes or edits
+# Apple Distribution Certificate already stored in this Expo account or creates
+# one new certificate, and creates an App Store provisioning profile for this
+# bundle ID only. It never revokes or edits
 # other apps' (e.g. LumiFlow's) certificates or profiles; if Apple's
 # certificate limit is reached it stops before any revoke question.
 name: iOS TestFlight
@@ -38,9 +39,12 @@ jobs:
   testflight:
     runs-on: ubuntu-latest
     timeout-minutes: 300
+    # Only identifiers here. The two real secrets (Expo token, .p8 key) are
+    # given to the steps that need them, never to npm ci / lint / tests.
     env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+      # one reviewed eas-cli version for every call (the never-revoke checks
+      # were done against it); bump deliberately
+      EAS_CLI: eas-cli@27.4.1
       ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID || vars.ASC_API_KEY_ID }}
       ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID || vars.ASC_API_ISSUER_ID }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || vars.APPLE_TEAM_ID }}
@@ -48,6 +52,9 @@ jobs:
       ASC_APP_ID: ${{ secrets.ASC_APP_ID || vars.ASC_APP_ID }}
     steps:
       - name: Check that the account secrets exist (values are never shown)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
         run: |
           missing=""
           for v in EXPO_TOKEN ASC_API_KEY_P8 ASC_API_KEY_ID ASC_API_ISSUER_ID APPLE_TEAM_ID APPLE_TEAM_TYPE ASC_APP_ID; do
@@ -78,6 +85,8 @@ jobs:
           npx jest --ci
 
       - name: Write the App Store Connect API key to a private temp file
+        env:
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
         run: |
           KEY="$RUNNER_TEMP/asc_api_key.p8"
           if printf '%s' "$ASC_API_KEY_P8" | grep -q "BEGIN PRIVATE KEY"; then
@@ -98,7 +107,9 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Link the Expo project (creates it on the first run)
-        run: npx eas-cli@latest init --non-interactive --force
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes "$EAS_CLI" init --non-interactive --force
 
       - name: Submit settings for this run (CI only, not committed)
         run: |
@@ -112,14 +123,18 @@ jobs:
       # the "reuse / generate" questions with yes and stops on anything else
       # (never revokes). Later runs find the stored credentials and ask nothing.
       - name: iOS signing credentials (reuse or create; never revoke)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           python3 -m venv "$RUNNER_TEMP/venv"
           "$RUNNER_TEMP/venv/bin/pip" install --quiet pexpect==4.9.0
           "$RUNNER_TEMP/venv/bin/python" scripts/ci/eas-ios-credentials.py
 
       - name: Build the signed iOS app on Expo (EAS Build)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          npx eas-cli@latest build --platform ios --profile production --non-interactive --wait --json > build.json
+          npx --yes "$EAS_CLI" build --platform ios --profile production --non-interactive --wait --json > build.json
           jq '.[0] | {id, status, appVersion, appBuildVersion}' build.json
           BUILD_ID=$(jq -r '.[0].id' build.json)
           STATUS=$(jq -r '.[0].status' build.json)
@@ -134,8 +149,10 @@ jobs:
 
       - name: Upload to TestFlight (EAS Submit)
         if: inputs.submit
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          npx eas-cli@latest submit --platform ios --profile production --id "$BUILD_ID" \
+          npx --yes "$EAS_CLI" submit --platform ios --profile production --id "$BUILD_ID" \
             --non-interactive --wait --auto-testflight-setup \
             --what-to-test "Tüm boyama özelliklerini deneyin: dokun-doldur, fırça, silgi, sihirli boyalar, çıkartmalar, yakınlaştırma, kutlama, galeri, otomatik kayıt. Test listesi: docs/TEST_LISTESI_IOS.md"
           {

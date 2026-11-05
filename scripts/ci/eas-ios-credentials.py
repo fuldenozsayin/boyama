@@ -31,7 +31,7 @@ import time
 
 import pexpect
 
-EAS_CLI = os.environ.get("EAS_CLI_CREDENTIALS", "eas-cli@27.4.1")
+EAS_CLI = os.environ.get("EAS_CLI", "eas-cli@27.4.1")  # the version the prompts below were checked against
 DEFAULT_CMD = ["npx", "--yes", EAS_CLI, "credentials:configure-build", "--platform", "ios", "--profile", "production"]
 
 # (question text as rendered by the `prompts` library, key to send)
@@ -47,11 +47,21 @@ STOP = [
     re.compile(r"Select certificates to revoke", re.I),
     re.compile(r"\brevoke\b", re.I),
 ]
-# an open question from `prompts`: "? <message> ›"
-OPEN_QUESTION = re.compile(r"(?ms)^\s*\? (.{1,600}?) ›")  # a message may span lines
+# an open question from `prompts` starts a line with "? " and ends with " ›";
+# the message in between may span several lines
+QUESTION_START = re.compile(r"(?m)^[ \t]*\? ")
 DONE = "All credentials are ready to build"
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]|\x1b[()][A-Za-z0-9]|\x1b[=>78]|\r")
 TOTAL_TIMEOUT = 20 * 60
+
+
+def open_question(text):
+    """(start, message) of the first open question in text, or None."""
+    for m in QUESTION_START.finditer(text):
+        end = text.find(" ›", m.end())
+        if end >= 0:
+            return m.start(), text[m.end():end]
+    return None
 
 
 def fail(child, msg, code=2):
@@ -67,9 +77,10 @@ def main():
     cmd = sys.argv[1:] or DEFAULT_CMD
     env = dict(os.environ, NO_COLOR="1", FORCE_COLOR="0")
     child = pexpect.spawn(cmd[0], cmd[1:], env=env, encoding="utf-8", codec_errors="replace", dimensions=(60, 220), timeout=None)
-    seen = ""  # everything printed so far (ANSI removed)
+    raw = ""  # everything printed so far
+    seen = ""  # the same without ANSI codes (stripped from the whole text, so a code split across reads is still removed)
     pos = 0  # start of the part of `seen` not consumed by an answered question
-    waiting_done = None  # after answering: wait for "✔ <question>" before answering anything else
+    waiting_done = None  # after answering: wait for "✔ <first line>" before answering anything else
     answered = []
     start = time.time()
     while True:
@@ -82,7 +93,8 @@ def main():
         if chunk:
             sys.stdout.write(chunk)
             sys.stdout.flush()
-            seen += ANSI.sub("", chunk)
+            raw += chunk
+            seen = ANSI.sub("", raw)
         rest = seen[pos:]
 
         for pat in STOP:
@@ -105,19 +117,22 @@ def main():
                 fail(child, f"Answer to '{waiting_done}' was not acknowledged.")
             continue
 
-        q = OPEN_QUESTION.search(rest)
+        q = open_question(rest)
         if q:
-            text = q.group(1).strip()
+            q_start, text = q
+            lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
             for question, key in SAFE_ANSWERS:
-                if text.startswith(question):
+                # the question is either the first line or (after details) the last line
+                if lines and (lines[0].startswith(question) or lines[-1] == question):
                     print(f"\n[ci] answering '{question}' -> {key}", flush=True)
                     child.send(key)
                     answered.append(question)
-                    waiting_done = question
-                    pos += q.start()
+                    # once answered, prompts re-renders the message as "✔ <first line> …"
+                    waiting_done = lines[0]
+                    pos += q_start
                     break
             else:
-                fail(child, f"Beklenmeyen soru, güvenlik için durduruldu: {text!r}")
+                fail(child, f"Beklenmeyen soru, güvenlik için durduruldu: {text.strip()!r}")
             continue
 
         if time.time() - start > TOTAL_TIMEOUT:

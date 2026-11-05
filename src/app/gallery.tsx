@@ -57,9 +57,10 @@ function Viewer({ id, onClose, onDelete }: { id: string; onClose: () => void; on
   // landscape phones: picture beside the buttons, so both fit the short height
   const landscape = width > height;
   const size = landscape ? Math.min(height - 96, width * 0.6, 640) : Math.min(width * 0.86, height * 0.66, 640);
-  // the button row (3 big + 1 small + gaps) must fit very narrow windows too
-  // (iPad Slide Over is 320 pt); unchanged on phones
-  const b = landscape ? 72 : Math.max(52, Math.min(72, Math.floor((width - 32 - 48 - 56) / 3)));
+  // iOS: the button row (3 big + 1 small + gaps) must fit iPad Slide Over
+  // windows (320 pt); Android and web keep the original size
+  const b =
+    landscape || Platform.OS !== 'ios' ? 72 : Math.max(52, Math.min(72, Math.floor((width - 32 - 48 - 56) / 3)));
   return (
     <View style={[styles.viewerBackdrop, landscape && { flexDirection: 'row', gap: 28 }]}>
       <Animated.View entering={ZoomIn.springify()} style={[styles.bigFrame, softShadow(14)]}>

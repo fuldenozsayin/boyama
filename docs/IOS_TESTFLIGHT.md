@@ -124,10 +124,16 @@ başlatırım (isterseniz siz de başlatabilirsiniz: **Actions → iOS TestFligh
 1. Kodun lint, tür ve birim testlerini çalıştırır.
 2. Expo projesini oluşturur/bağlar.
 3. **İmza (yalnızca ilk çalıştırmada):**
-   - Ekibinizde geçerli bir Apple dağıtım sertifikası (Apple Distribution
-     Certificate) varsa onu **yeniden kullanır**. Bu sertifikalar uygulamaya
-     özel değildir; yeniden kullanmak LumiFlow'da hiçbir şeyi değiştirmez.
-   - Geçerli sertifika yoksa yeni bir tane oluşturur.
+   - Bu Expo hesabında daha önceki EAS derlemelerinden kalma geçerli bir
+     Apple dağıtım sertifikası (Apple Distribution Certificate) varsa onu
+     **yeniden kullanır**. Bu sertifikalar uygulamaya özel değildir; yeniden
+     kullanmak LumiFlow'da hiçbir şeyi değiştirmez. (Xcode ile oluşturulmuş
+     sertifikalar yeniden kullanılamaz, çünkü özel anahtarları yalnızca o
+     bilgisayardadır.)
+   - Yoksa ekibinizde **bir** yeni dağıtım sertifikası oluşturur. Apple bir
+     ekipte en fazla 3 dağıtım sertifikasına izin verir; yeni sertifika
+     bunlardan birini kullanır. Mevcut sertifikalar (LumiFlow'unkiler dahil)
+     değiştirilmez ve iptal edilmez.
    - Yalnızca `com.minikrenkler.dunyasi` için bir App Store provisioning
      profile oluşturur.
    - Bu adım yalnızca bu güvenli sorulara "evet" der; başka bir soru
