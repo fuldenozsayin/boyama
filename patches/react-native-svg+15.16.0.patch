@@ -11,3 +11,22 @@ index dc3dc04..20e296c 100644
        paint.setShader(bitmapShader);
        return;
      }
+diff --git a/node_modules/react-native-svg/apple/Brushes/RNSVGPainter.mm b/node_modules/react-native-svg/apple/Brushes/RNSVGPainter.mm
+index c4aea57..98d4820 100644
+--- a/node_modules/react-native-svg/apple/Brushes/RNSVGPainter.mm
++++ b/node_modules/react-native-svg/apple/Brushes/RNSVGPainter.mm
+@@ -154,7 +154,14 @@ void PatternFunction(void *info, CGContextRef context)
+   CGFloat w = [self getVal:[_points objectAtIndex:2] relative:width];
+   CGFloat h = [self getVal:[_points objectAtIndex:3] relative:height];
+ 
++#if TARGET_OS_OSX
+   CGAffineTransform viewbox = [self.pattern.svgView getViewBoxTransform];
++#else
++  // Quartz maps pattern space to the context's base space, not to the current
++  // CTM: include group/element transforms so a pattern moves with its shape
++  // (identical to the viewBox transform when no transform is set)
++  CGAffineTransform viewbox = CGAffineTransformConcat(CGContextGetCTM(context), self.pattern.svgView.invInitialCTM);
++#endif
+ #if TARGET_OS_OSX
+   // This is needed because macOS and iOS have different conventions for where the origin is.
+   // For macOS, it's in the bottom-left corner. For iOS, it's in the top-left corner.
